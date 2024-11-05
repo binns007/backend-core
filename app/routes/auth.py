@@ -14,35 +14,12 @@ router = APIRouter(
 )
 
 @router.post("/register-admin", status_code=status.HTTP_201_CREATED, response_model=user.AdminUserOut)
-def register_admin_user(user: user.AdminUserCreate, db: Session) -> models.User:
-    # Check if the email has been verified
-    otp_entry = db.query(models.OTP).filter(models.OTP.email == user.email, models.OTP.verified == True).first()
-    if not otp_entry:
-        raise ValueError("Email has not been verified")
-
-    # Check if the user already exists
-    existing_user = db.query(models.User).filter(models.User.email == user.email).first()
-    if existing_user:
-        raise ValueError("Email already registered")
-    
-    # Validate passwords match
-    if user.password != user.confirm_password:
-        raise ValueError("Passwords do not match")
-
-    hashed_password = utils.hash(user.password)
-    
-    # Create new user
-    new_user = models.User(
-        first_name=user.first_name,
-        last_name = user.last_name,
-        email=user.email,
-        password_hash=hashed_password,
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    return new_user
+def register_admin_user(user: user.AdminUserCreate, db: Session = Depends(database.get_db)):
+    try:
+        new_user = auth.register_admin_user(user, db)
+        return new_user
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 @router.post("/verify-email", status_code=status.HTTP_200_OK)
 def verify_email(email: str, db: Session = Depends(database.get_db)):
