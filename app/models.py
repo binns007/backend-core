@@ -5,6 +5,15 @@ from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
+
+class RoleEnum(enum.Enum):
+    ADMIN = "admin"
+    DEALER = "dealer"
+    SALES_EXECUTIVE = "sales_executive"
+    FINANCE = "finance"
+    RTO = "rto"
+    CUSTOMER = "customer"
+    
 class Dealership(Base):
     __tablename__ = "dealerships"
     
@@ -12,12 +21,35 @@ class Dealership(Base):
     name = Column(String, nullable=False)
     contact_email = Column(String, unique=True)
     created_at = Column(TIMESTAMP, server_default="now()")
-    
+    address = Column(String, nullable=False)
+    contact_number = Column(String, nullable=False)
+    num_employees = Column(Integer, nullable=False)
+    creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+
+    roles = relationship("DealershipRole", back_populates="dealership")
     payments = relationship("Payment", back_populates="dealership")
     branches = relationship("Branch", back_populates="dealership")
-    users = relationship("User", back_populates="dealership")
+    users = relationship("User", back_populates="dealership",foreign_keys="[User.dealership_id]")
     customers = relationship("Customer", back_populates="dealership")
+    creator = relationship("User", back_populates="created_dealership",foreign_keys="[Dealership.creator_id]")
 
+
+class DealershipRole(Base):
+    __tablename__ = "dealership_roles"
+    id = Column(Integer, primary_key=True, index=True)
+    dealership_id = Column(Integer, ForeignKey("dealerships.id"), nullable=False)
+    role = Column(SQLAlchemyEnum(RoleEnum), nullable=False)
+    enabled = Column(Boolean, default=True)
+    
+    dealership = relationship("Dealership", back_populates="roles")
+
+class SuggestedRole(Base):
+    __tablename__ = "suggested_roles"
+    id = Column(Integer, primary_key=True, index=True)
+    dealership_id = Column(Integer, ForeignKey("dealerships.id"), nullable=False)
+    role_name = Column(String, nullable=False)
+    reason = Column(String)  # Optional description of why they need this role
 class Branch(Base):
     __tablename__ = "branches"
     
@@ -31,13 +63,7 @@ class Branch(Base):
     users = relationship("User", back_populates="branch")
     customers = relationship("Customer", back_populates="branch")
 
-class RoleEnum(enum.Enum):
-    ADMIN = "admin"
-    DEALER = "dealer"
-    SALES_EXECUTIVE = "sales_executive"
-    FINANCE = "finance"
-    RTO = "rto"
-    CUSTOMER = "customer"
+
 
 class User(Base):
     __tablename__ = "users"
@@ -49,12 +75,14 @@ class User(Base):
     last_name = Column(String, nullable=False)
     email = Column(String, unique=True)
     role = Column(SQLAlchemyEnum(RoleEnum), nullable=False) 
-    password_hash = Column(String, nullable=False)
+    password = Column(String, nullable=False)
     created_at = Column(TIMESTAMP, server_default="now()")
     
     
-    dealership = relationship("Dealership", back_populates="users")
+    dealership = relationship("Dealership", back_populates="users",foreign_keys="[User.dealership_id]")
     branch = relationship("Branch", back_populates="users")
+    created_dealership = relationship("Dealership", back_populates="creator",foreign_keys="[Dealership.creator_id]")
+
 
 
 class Payment(Base):
