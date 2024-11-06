@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import models
 import database
 
-from routes import auth
+from routes import auth, dealership
 from dotenv import load_dotenv
 
 
@@ -26,5 +26,7 @@ app.add_middleware(
 models.Base.metadata.create_all(bind=database.engine)
 
 app.include_router(auth.router)
+app.include_router(dealership.router)
+
 
 
