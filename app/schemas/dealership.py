@@ -19,4 +19,5 @@ class DealershipCreate(BaseModel):
     contact_number: str 
     contact_email: EmailStr
     num_employees: int
+    num_branches: int
     roles: List[RoleEnum]  # List of selected roles for the dealership

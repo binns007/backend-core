@@ -15,6 +15,7 @@ def register_dealership_service(
         address=dealership_data.address,
         contact_number=dealership_data.contact_number,
         num_employees=dealership_data.num_employees,
+        num_branches= dealership_data.num_branches,
         contact_email=dealership_data.contact_email,
         # Set the creator_id to the current admin user's id
         creator_id=current_user.id
@@ -22,6 +23,15 @@ def register_dealership_service(
     
     # Add the dealership to the database
     db.add(dealership)
+    db.commit()
+    db.refresh(dealership)
+
+    # Assign the selected roles to the dealership
+    dealership_roles = [
+        models.DealershipRole(dealership_id=dealership.id, role=role)
+        for role in dealership_data.roles
+    ]
+    db.add_all(dealership_roles)
     db.commit()
 
     # Link the dealership with the current admin user
