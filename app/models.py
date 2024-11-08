@@ -16,7 +16,6 @@ class RoleEnum(enum.Enum):
     
 class Dealership(Base):
     __tablename__ = "dealerships"
-    
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     contact_email = Column(String, unique=True)
@@ -24,6 +23,7 @@ class Dealership(Base):
     address = Column(String, nullable=False)
     contact_number = Column(String, nullable=False)
     num_employees = Column(Integer, nullable=False)
+    num_branches = Column(Integer, nullable=False)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
 
