@@ -67,7 +67,6 @@ def update_employee(employee_id: int, employee_data: employee.EmployeeUpdate, db
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Employee with id {employee_id} not found"
         )
-    
 
     
     employee_query.update(employee_data.model_dump(exclude_unset=True))
@@ -123,12 +122,15 @@ def activate_employee_account(activation_data: employee.EmployeeActivation, db: 
             detail="Invalid or expired OTP"
         )
     
-    
+    if not employee.phone_number:
+        employee.phone_number = activation_data.phone_number
+        
     employee.password = hash(activation_data.new_password)
     otp_record.verified = True
     
     db.commit()
     return {"message": "Account activated successfully"}
+
 
 
 def generate_otp():

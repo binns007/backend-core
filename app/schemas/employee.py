@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
 from models import RoleEnum
@@ -35,6 +35,8 @@ class EmployeeActivation(BaseModel):
     current_password: str
     new_password: str
     otp: str
+    phone_number: str = Field(..., pattern=r'^\+?\d{10,15}$')
+ 
 
 
 class EmployeeOTPRequest(BaseModel):
