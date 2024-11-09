@@ -76,6 +76,7 @@ class User(Base):
     email = Column(String, unique=True)
     role = Column(SQLAlchemyEnum(RoleEnum), nullable=False) 
     password = Column(String, nullable=False)
+    phone_number = Column(String)
     created_at = Column(TIMESTAMP, server_default="now()")
     
     
