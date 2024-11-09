@@ -42,3 +42,20 @@ def delete_employee(
     current_user = Depends(oauth2.get_current_user)
 ):
     return employee_service.delete_employee(employee_id, db, current_user)
+
+
+@router.post("/activate", status_code=status.HTTP_200_OK)
+def activate_employee(
+    activation_data: employee.EmployeeActivation,
+    db: Session = Depends(database.get_db)
+):
+
+    return employee_service.activate_employee_account(activation_data, db)
+
+
+@router.post("/send-activation-otp", status_code=status.HTTP_200_OK)
+def send_activation_otp(
+    otp_request: employee.EmployeeOTPRequest,
+    db: Session = Depends(database.get_db)
+):
+    return employee_service.send_employee_otp(otp_request.email, db)
