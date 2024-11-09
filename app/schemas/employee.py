@@ -29,3 +29,13 @@ class EmployeeUpdate(BaseModel):
     role: Optional[RoleEnum] = None
     branch_id: Optional[int] = None
     password: Optional[str] = None
+
+class EmployeeActivation(BaseModel):
+    email: EmailStr
+    current_password: str
+    new_password: str
+    otp: str
+
+
+class EmployeeOTPRequest(BaseModel):
+    email: EmailStr
