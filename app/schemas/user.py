@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr,validator
 from typing import Optional, List
 from enum import Enum
 
@@ -29,10 +29,13 @@ class AdminUserCreate(BaseModel):
 class AdminUserOut(BaseModel):
     id: int
     first_name: str 
-    last_name: str  # Assuming last_name is optional
+    last_name: str
     email: str
-    role: RoleEnum
+    role: str
 
+    @validator("role", pre=True)
+    def convert_role(cls, v):
+        return v.upper() if isinstance(v, str) else v
 class Token(BaseModel):
     access_token: str
     token_type: str

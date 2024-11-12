@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import models
 import database
 
-from routes import auth, dealership, branch, employee
+from routes import auth, dealership, branch, employee, form
 from dotenv import load_dotenv
 
 
@@ -29,6 +29,7 @@ app.include_router(auth.router)
 app.include_router(dealership.router)
 app.include_router(branch.router)
 app.include_router(employee.router)
+app.include_router(form.router)
 
 
 

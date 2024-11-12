@@ -7,7 +7,7 @@ from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 
 
 
-def register_admin_user(user: user.AdminUserCreate, db: Session) -> models.User:
+def register_admin_user(user: user.AdminUserCreate, db: Session):
     existing_user = db.query(models.User).filter(models.User.email == user.email).first()
     if existing_user:
         raise ValueError("Email already registered")

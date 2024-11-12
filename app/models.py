@@ -146,3 +146,35 @@ class Vehicle(Base):
     
     # Relationships
     customers = relationship("Customer", back_populates="vehicle")
+
+
+class FilledByEnum(str, enum.Enum):
+    SALES_EXECUTIVE = "sales_executive"
+    CUSTOMER = "customer"
+
+# Enum to define the data type for each form field
+class FieldTypeEnum(str, enum.Enum):
+    TEXT = "text"  # "TEXT" is the member name, and "text" is the value
+    NUMBER = "number"
+    IMAGE = "image" 
+    DATE = "date"
+    
+
+class FormTemplate(Base):
+    __tablename__ = "form_templates"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)  # Name of the template
+    dealership_id = Column(Integer, ForeignKey("dealerships.id", ondelete="CASCADE"))
+
+    fields = relationship("FormField", back_populates="template", cascade="all, delete-orphan")
+
+class FormField(Base):
+    __tablename__ = "form_fields"
+    id = Column(Integer, primary_key=True)
+    template_id = Column(Integer, ForeignKey("form_templates.id", ondelete="CASCADE"))
+    name = Column(String, nullable=False)           # Field name (e.g., "License Number")
+    field_type = Column(SQLAlchemyEnum(FieldTypeEnum), nullable=False)  # Field type
+    is_required = Column(Boolean, default=True)      # Is the field mandatory?
+    filled_by = Column(SQLAlchemyEnum(FilledByEnum), nullable=False)  # Who fills this field
+    order = Column(Integer, nullable=False)          # Order of the field in the form
+    template = relationship("FormTemplate", back_populates="fields")
