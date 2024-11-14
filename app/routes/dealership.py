@@ -19,3 +19,4 @@ def register_dealership(
     current_user: models.User = Depends(oauth2.get_current_user)
 ):
     return func_dealership.register_dealership_service(dealership_data, db, current_user)
+
