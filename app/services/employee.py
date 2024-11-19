@@ -40,7 +40,8 @@ def create_employee(employee_data: employee.EmployeeCreate, db: Session, current
     new_employee = models.User(
         **employee_dict,
         password=hashed_password,
-        dealership_id=current_user.dealership_id
+        dealership_id=current_user.dealership_id,
+        is_activated=False
     )
     
     db.add(new_employee)
@@ -108,6 +109,13 @@ def activate_employee_account(activation_data: employee.EmployeeActivation, db: 
             detail="Invalid current password"
         )
     
+    # Check if account is already activated
+    if employee.is_activated:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account is already activated"
+        )
+    
     # Verify OTP
     otp_record = db.query(models.OTP).filter(
         models.OTP.email == activation_data.email,
@@ -122,17 +130,17 @@ def activate_employee_account(activation_data: employee.EmployeeActivation, db: 
             detail="Invalid or expired OTP"
         )
     
+    # Update employee information
     if not employee.phone_number:
         employee.phone_number = activation_data.phone_number
-        
+    
     employee.password = hash(activation_data.new_password)
+    employee.is_activated = True  # Mark account as activated
     otp_record.verified = True
     
     db.commit()
     return {"message": "Account activated successfully"}
-
-
-
+    
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
 
@@ -177,3 +185,78 @@ def send_employee_otp(email: str, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to send OTP: {str(e)}"
         )
+
+
+def get_employee_by_id(employee_id: int, db: Session, current_user: models.User):
+    """Get detailed information about a specific employee"""
+    if current_user.role != models.RoleEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin users can view detailed employee information"
+        )
+    
+    employee = db.query(models.User).filter(
+        models.User.id == employee_id,
+        models.User.dealership_id == current_user.dealership_id
+    ).first()
+    
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Employee with id {employee_id} not found"
+        )
+    
+    return employee
+
+def update_employee_role(
+    employee_id: int,
+    role_update: employee.RoleUpdate,
+    db: Session,
+    current_user: models.User
+):
+    """Update an employee's role"""
+    if current_user.role != models.RoleEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin users can update employee roles"
+        )
+    
+    employee = db.query(models.User).filter(
+        models.User.id == employee_id,
+        models.User.dealership_id == current_user.dealership_id
+    ).first()
+    
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Employee with id {employee_id} not found"
+        )
+    
+    # Update the role
+    employee.role = role_update.role
+    db.commit()
+    db.refresh(employee)
+    
+    return employee
+
+def get_available_roles(db: Session, current_user: models.User):
+    """Get list of all available roles with descriptions"""
+    roles_info = [
+        employee.RoleResponse(
+            name=models.RoleEnum.DEALER.value,
+            description="Can manage overall dealership operations"
+        ),
+        employee.RoleResponse(
+            name=models.RoleEnum.SALES_EXECUTIVE.value,
+            description="Handles sales and customer interactions"
+        ),
+        employee.RoleResponse(
+            name=models.RoleEnum.FINANCE.value,
+            description="Manages financial aspects and transactions"
+        ),
+        employee.RoleResponse(
+            name=models.RoleEnum.RTO.value,
+            description="Handles vehicle registration and documentation"
+        )
+    ]
+    return roles_info

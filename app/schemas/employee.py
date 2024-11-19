@@ -41,3 +41,11 @@ class EmployeeActivation(BaseModel):
 
 class EmployeeOTPRequest(BaseModel):
     email: EmailStr
+
+class RoleUpdate(BaseModel):
+    role: RoleEnum
+    reason: str  # Optional field to document why the role was changed
+
+class RoleResponse(BaseModel):
+    name: str
+    description: str

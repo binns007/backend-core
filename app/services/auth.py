@@ -37,5 +37,10 @@ def authenticate_user(user_credentials: OAuth2PasswordRequestForm, db: Session) 
     if not user or not core.utils.verify(user_credentials.password, user.password):
         raise ValueError("Invalid credentials")
 
+    # Allow admin users to login regardless of activation status
+    # For other users, check activation status
+    if user.role != models.RoleEnum.ADMIN and not user.is_activated:
+        raise ValueError("Please activate your account before logging in. Check your email for activation instructions.")
+
     access_token = core.oauth2.create_access_token(data={"user_id": user.id})
     return access_token

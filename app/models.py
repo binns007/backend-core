@@ -77,6 +77,7 @@ class User(Base):
     role = Column(SQLAlchemyEnum(RoleEnum), nullable=False) 
     password = Column(String, nullable=False)
     phone_number = Column(String)
+    is_activated = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, server_default="now()")
     
     
