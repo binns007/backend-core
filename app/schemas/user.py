@@ -26,6 +26,7 @@ class AdminUserCreate(BaseModel):
     class Config:
         use_enum_values = True
 
+
 class AdminUserOut(BaseModel):
     id: int
     first_name: str 

@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 # Adjust the path according to your project structure
-env_path = Path("/Users/sreejiths/works/backend-core/.env")
+env_path = Path("C://Users//binns//Desktop//backend-core//.env")
 load_dotenv(dotenv_path=env_path)
 
 # Verify if the environment variables are loaded

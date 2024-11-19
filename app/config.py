@@ -20,6 +20,6 @@ class Settings(BaseSettings):
 
 
     class Config:
-        env_file = Path("/Users/sreejiths/works/backend-core/.env")
+        env_file = Path("C://Users//binns//Desktop//backend-core//.env")
 
-settings = Settings(_env_file=Path("/Users/sreejiths/works/backend-core/.env"), _env_file_encoding="utf-8")
+settings = Settings(_env_file=Path("C://Users//binns//Desktop//backend-core//.env"), _env_file_encoding="utf-8")

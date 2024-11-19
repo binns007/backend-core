@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from config import settings
 from typing import Union
 
-oauth2_scheme_user = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme_user = OAuth2PasswordBearer(tokenUrl="login",auto_error=False)
 
 
 SECRET_KEY = settings.secret_key
@@ -44,13 +44,36 @@ def verify_access_token_user(token: str, credentials_exception):
 
 
 def get_current_user(token: str = Depends(oauth2_scheme_user), db: Session = Depends(database.get_db)):
-    credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                          detail=f"Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+    # If no token is provided and we're accessing a public endpoint, return None
+    if not token:
+        return None
+        
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=f"Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"}
+    )
 
     token = verify_access_token_user(token, credentials_exception)
-
     user = db.query(models.User).filter(models.User.id == token.id).first()
+    
+    # Check activation status only for non-admin users
+    if user and not user.is_activated and user.role != models.RoleEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account not activated. Please activate your account first."
+        )
 
     return user
 
 
+
+def get_current_user_authenticated(
+    current_user: models.User = Depends(get_current_user)
+) -> models.User:
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+    return current_user
