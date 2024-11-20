@@ -48,3 +48,31 @@ class RoleUpdate(BaseModel):
 class RoleResponse(BaseModel):
     name: str
     description: str
+
+from pydantic import BaseModel, EmailStr
+from typing import List, Optional
+from enum import Enum
+
+class NotificationType(str, Enum):
+    EMAIL = "email"
+    SMS = "sms"
+    BOTH = "both"
+
+class NotificationPriority(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+class SingleNotification(BaseModel):
+    message: str
+    notification_type: NotificationType
+    priority: NotificationPriority = NotificationPriority.MEDIUM
+    subject: Optional[str] = None
+
+class BatchNotificationFilter(BaseModel):
+    branch_ids: Optional[List[int]] = None
+    roles: Optional[List[RoleEnum]] = None
+    employee_ids: Optional[List[int]] = None
+
+class BatchNotification(SingleNotification):
+    filters: BatchNotificationFilter
