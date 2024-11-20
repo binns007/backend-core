@@ -124,55 +124,13 @@ def activate_employee_account(activation_data: employee.EmployeeActivation, db: 
     
     employee.password = hash(activation_data.new_password)
     employee.is_activated = True  # Mark account as activated
-    otp_record.verified = True
+    
     
     db.commit()
     return {"message": "Account activated successfully"}
     
-def generate_otp():
-    return ''.join(random.choices(string.digits, k=6))
 
-def send_employee_otp(email: str, db: Session):
-    # Verify the employee exists
-    employee = db.query(models.User).filter(models.User.email == email).first()
-    if not employee:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Employee not found"
-        )
-    
 
-    # Generate new OTP
-    otp_code = generate_otp()
-    
-    # Save OTP to database
-    new_otp = models.OTP(
-        email=email,
-        otp_code=otp_code,
-        expiration_time=datetime.utcnow() + timedelta(minutes=10),
-        verified=False
-    )
-    
-    # Delete any existing unverified OTPs for this email
-    db.query(models.OTP).filter(
-        models.OTP.email == email,
-        models.OTP.verified == False
-    ).delete()
-    
-    # Save new OTP
-    db.add(new_otp)
-    db.commit()
-    
-    # Send OTP via email
-    try:
-        send_otp(email, otp_code)
-        return {"message": "OTP sent successfully"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to send OTP: {str(e)}"
-        )
 
 
 def get_employee_by_id(employee_id: int, db: Session, current_user: models.User):
