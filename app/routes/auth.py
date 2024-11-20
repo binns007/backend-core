@@ -53,7 +53,8 @@ def verify_otp(email: str, otp_code: str, db: Session = Depends(database.get_db)
 @router.post('/login', response_model=user.Token)
 def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
     try:
-        token = auth.authenticate_user(user_credentials, db)
-        return {"access_token": token, "token_type": "bearer"}
+        # Authenticate user and get the access token and role
+        token, role = auth.authenticate_user(user_credentials, db)
+        return {"access_token": token, "token_type": "bearer", "role": role}
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
