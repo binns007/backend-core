@@ -34,7 +34,6 @@ class EmployeeActivation(BaseModel):
     email: EmailStr
     current_password: str
     new_password: str
-    otp: str
     phone_number: str = Field(..., pattern=r'^\+?\d{10,15}$')
  
 
