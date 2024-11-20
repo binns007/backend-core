@@ -70,3 +70,60 @@ def get_form_template(template_id: int, db: Session = Depends(database.get_db)):
 
 
 
+
+
+@router.put("/templates/{template_id}/activate", response_model=dict)
+def activate_form_template(
+    template_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user)
+):
+    """
+    Admin endpoint to activate a form template.
+    """
+    
+    
+    # Fetch the template
+    template = db.query(models.FormTemplate).filter(models.FormTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Form template not found.")
+    
+    # Activate the template
+    template.is_active = True
+    db.commit()
+    db.refresh(template)
+    
+    return {"message": f"Template '{template.name}' has been activated successfully."}
+
+
+@router.get("/forms/active", response_model=List[form.FormFieldResponse])
+def get_active_form_fields(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user)
+):
+ 
+
+    # Get the dealership of the current user
+    dealership_id = current_user.dealership_id
+    if not dealership_id:
+        raise HTTPException(status_code=404, detail="Dealership not found for the user")
+
+    # Get the active form templates for the dealership
+    active_template = db.query(models.FormTemplate).filter(
+        models.FormTemplate.dealership_id == dealership_id,
+        models.FormTemplate.is_active == True
+    ).first()
+
+    if not active_template:
+        raise HTTPException(status_code=404, detail="No active form template found for this dealership")
+
+    # Fetch all fields associated with the active form template
+    fields = db.query(models.FormField).filter(
+        models.FormField.template_id == active_template.id
+    ).all()
+
+    if not fields:
+        raise HTTPException(status_code=404, detail="No fields found for the active form")
+
+    # Return the fields to be rendered by the frontend
+    return fields

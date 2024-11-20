@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, TIMESTAMP, Enum as S
 from sqlalchemy.orm import relationship
 import enum
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.sql import func
 
 Base = declarative_base()
 
@@ -33,6 +34,7 @@ class Dealership(Base):
     users = relationship("User", back_populates="dealership",foreign_keys="[User.dealership_id]")
     customers = relationship("Customer", back_populates="dealership")
     creator = relationship("User", back_populates="created_dealership",foreign_keys="[Dealership.creator_id]")
+    form_templates = relationship("FormTemplate", back_populates="dealership")  
 
 
 class DealershipRole(Base):
@@ -163,19 +165,57 @@ class FieldTypeEnum(str, enum.Enum):
 
 class FormTemplate(Base):
     __tablename__ = "form_templates"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)  # Name of the template
-    dealership_id = Column(Integer, ForeignKey("dealerships.id", ondelete="CASCADE"))
 
-    fields = relationship("FormField", back_populates="template", cascade="all, delete-orphan")
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    is_active = Column(Boolean, default=False)  # Flag for active template
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    fields = relationship("FormField", back_populates="template")
+    instances = relationship("FormInstance", back_populates="template")
+
+    dealership_id = Column(Integer, ForeignKey('dealerships.id'))  # Ensure this field exists
+
+    dealership = relationship("Dealership", back_populates="form_templates")  # Relationship with Dealership
+
+
 
 class FormField(Base):
     __tablename__ = "form_fields"
-    id = Column(Integer, primary_key=True)
-    template_id = Column(Integer, ForeignKey("form_templates.id", ondelete="CASCADE"))
-    name = Column(String, nullable=False)           # Field name (e.g., "License Number")
-    field_type = Column(SQLAlchemyEnum(FieldTypeEnum), nullable=False)  # Field type
-    is_required = Column(Boolean, default=True)      # Is the field mandatory?
-    filled_by = Column(SQLAlchemyEnum(FilledByEnum), nullable=False)  # Who fills this field
-    order = Column(Integer, nullable=False)          # Order of the field in the form
+
+    id = Column(Integer, primary_key=True, index=True)
+    template_id = Column(Integer, ForeignKey("form_templates.id"), nullable=False)
+    name = Column(String, nullable=False)
+    field_type = Column(SQLAlchemyEnum(FieldTypeEnum), nullable=False)
+    is_required = Column(Boolean, default=True)
+    filled_by = Column(SQLAlchemyEnum(FilledByEnum), nullable=False)
+    order = Column(Integer, nullable=False)
+
     template = relationship("FormTemplate", back_populates="fields")
+
+
+class FormInstance(Base):
+    __tablename__ = "form_instances"
+
+    id = Column(Integer, primary_key=True, index=True)
+    template_id = Column(Integer, ForeignKey("form_templates.id"), nullable=False)
+    generated_by = Column(Integer, nullable=False)  # Sales executive ID
+    customer_name = Column(String, nullable=True)
+    customer_email = Column(String, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    template = relationship("FormTemplate", back_populates="instances")
+    responses = relationship("FormResponse", back_populates="form_instance")
+
+
+class FormResponse(Base):
+    __tablename__ = "form_responses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    form_instance_id = Column(Integer, ForeignKey("form_instances.id"), nullable=False)
+    form_field_id = Column(Integer, ForeignKey("form_fields.id"), nullable=False)
+    value = Column(String, nullable=True)  # Stores text, numbers, or S3 URLs
+
+    form_instance = relationship("FormInstance", back_populates="responses")
+    form_field = relationship("FormField")
