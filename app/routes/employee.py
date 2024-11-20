@@ -13,6 +13,27 @@ router = APIRouter(
 )
 
 # Static routes first
+
+@router.post("/{employee_id}/notify", status_code=status.HTTP_200_OK)
+async def notify_employee_endpoint(
+    employee_id: int,
+    notification_data: employee.SingleNotification,
+    db: Session = Depends(database.get_db),
+    current_user = Depends(oauth2.get_current_user_authenticated)
+):
+    """Send a notification to a specific employee"""
+    return await employee_service.notify_employee(employee_id, notification_data, db, current_user)
+
+@router.post("/notify-batch", status_code=status.HTTP_200_OK)
+async def notify_batch_employees_endpoint(
+    notification_data: employee.BatchNotification,
+    db: Session = Depends(database.get_db),
+    current_user = Depends(oauth2.get_current_user_authenticated)
+):
+    """Send notifications to multiple employees based on filters"""
+    return await employee_service.notify_batch_employees(notification_data, db, current_user)
+
+
 @router.get("/roles", response_model=List[employee.RoleResponse])
 def get_roles(
     db: Session = Depends(database.get_db),
@@ -91,3 +112,4 @@ def delete_employee(
     current_user = Depends(oauth2.get_current_user)
 ):
     return employee_service.delete_employee(employee_id, db, current_user)
+

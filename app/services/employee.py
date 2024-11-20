@@ -2,10 +2,200 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 import models
 from schemas import employee
+from schemas.employee import NotificationType
 from core.utils import hash, verify
 from core.otp import generate_otp, send_otp
 import random, string
 from datetime import datetime, timedelta
+from typing import Dict, Any
+from core.notifications import send_email, send_sms, NotificationError
+
+
+
+
+async def notify_employee(
+    employee_id: int,
+    notification_data: employee.SingleNotification,
+    db: Session,
+    current_user: models.User
+) -> Dict[str, Any]:
+    """
+    Send notification to a single employee
+    
+    Args:
+        employee_id: ID of employee to notify
+        notification_data: Notification content and settings
+        db: Database session
+        current_user: Currently authenticated user
+    
+    Returns:
+        Dict containing success message or error details
+    
+    Raises:
+        HTTPException: For permission, validation or notification errors
+    """
+    # Check permissions
+    if current_user.role != models.RoleEnum.ADMIN and current_user.id != employee_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only send notifications to yourself unless you're an admin"
+        )
+    
+    # Get employee
+    employee = db.query(models.User).filter(
+        models.User.id == employee_id,
+        models.User.dealership_id == current_user.dealership_id
+    ).first()
+    
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Employee with id {employee_id} not found"
+        )
+
+    notification_sent = False
+    errors = []
+
+    try:
+        if notification_data.notification_type in [NotificationType.EMAIL, NotificationType.BOTH]:
+            if employee.email:
+                await send_email(
+                    to_email=employee.email,
+                    subject=notification_data.subject or "New Notification",
+                    message=notification_data.message,
+                    priority=notification_data.priority
+                )
+                notification_sent = True
+            else:
+                errors.append("Email address not available")
+
+        if notification_data.notification_type in [NotificationType.SMS, NotificationType.BOTH]:
+            if employee.phone_number:
+                await send_sms(
+                    to_phone=employee.phone_number,
+                    message=notification_data.message,
+                    priority=notification_data.priority
+                )
+                notification_sent = True
+            else:
+                errors.append("Phone number not available")
+
+        if not notification_sent:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Could not send notification: {', '.join(errors)}"
+            )
+
+        return {"message": "Notification sent successfully"}
+
+    except NotificationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Notification delivery failed: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Server error while sending notification: {str(e)}"
+        )
+
+async def notify_batch_employees(
+    notification_data: employee.BatchNotification,
+    db: Session,
+    current_user: models.User
+) -> Dict[str, Any]:
+    """
+    Send notifications to multiple employees based on filters
+    
+    Args:
+        notification_data: Batch notification settings and content
+        db: Database session
+        current_user: Currently authenticated user
+        
+    Returns:
+        Dict containing success/failure counts and details
+    
+    Raises:
+        HTTPException: For permission or validation errors
+    """
+    if current_user.role != models.RoleEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin users can send batch notifications"
+        )
+
+    # Build query based on filters
+    query = db.query(models.User).filter(
+        models.User.dealership_id == current_user.dealership_id
+    )
+
+    filters = notification_data.filters
+    if filters.branch_ids:
+        query = query.filter(models.User.branch_id.in_(filters.branch_ids))
+    if filters.roles:
+        query = query.filter(models.User.role.in_(filters.roles))
+    if filters.employee_ids:
+        query = query.filter(models.User.id.in_(filters.employee_ids))
+
+    employees = query.all()
+    if not employees:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No employees found matching the specified criteria"
+        )
+
+    results = {
+        "total_employees": len(employees),
+        "success_count": 0,
+        "failure_count": 0,
+        "failures": []
+    }
+
+    for employee in employees:
+        try:
+            if notification_data.notification_type in [NotificationType.EMAIL, NotificationType.BOTH]:
+                if employee.email:
+                    try:
+                        await send_email(
+                            to_email=employee.email,
+                            subject=notification_data.subject or "New Notification",
+                            message=notification_data.message,
+                            priority=notification_data.priority
+                        )
+                        results["success_count"] += 1
+                    except NotificationError as e:
+                        results["failures"].append(f"Employee {employee.id} email failed: {str(e)}")
+                        results["failure_count"] += 1
+                else:
+                    results["failures"].append(f"Employee {employee.id}: Email address not available")
+                    results["failure_count"] += 1
+
+            if notification_data.notification_type in [NotificationType.SMS, NotificationType.BOTH]:
+                if employee.phone_number:
+                    try:
+                        await send_sms(
+                            to_phone=employee.phone_number,
+                            message=notification_data.message,
+                            priority=notification_data.priority
+                        )
+                        results["success_count"] += 1
+                    except NotificationError as e:
+                        results["failures"].append(f"Employee {employee.id} SMS failed: {str(e)}")
+                        results["failure_count"] += 1
+                else:
+                    results["failures"].append(f"Employee {employee.id}: Phone number not available")
+                    results["failure_count"] += 1
+
+        except Exception as e:
+            results["failures"].append(f"Employee {employee.id}: Unexpected error: {str(e)}")
+            results["failure_count"] += 1
+
+    # Only include failures list if there were any failures
+    if not results["failures"]:
+        results.pop("failures")
+
+    return results
+
 
 def create_employee(employee_data: employee.EmployeeCreate, db: Session, current_user: models.User):
     if current_user.role != models.RoleEnum.ADMIN:
@@ -260,3 +450,5 @@ def get_available_roles(db: Session, current_user: models.User):
         )
     ]
     return roles_info
+
+
