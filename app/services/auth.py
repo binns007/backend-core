@@ -31,16 +31,19 @@ def register_admin_user(user: user.AdminUserCreate, db: Session):
     
     return new_user
 
-def authenticate_user(user_credentials: OAuth2PasswordRequestForm, db: Session) -> str:
+def authenticate_user(user_credentials: OAuth2PasswordRequestForm, db: Session) -> tuple:
     user = db.query(models.User).filter(models.User.email == user_credentials.username).first()
 
+    # Check if user exists and the password is correct
     if not user or not core.utils.verify(user_credentials.password, user.password):
         raise ValueError("Invalid credentials")
 
-    # Allow admin users to login regardless of activation status
-    # For other users, check activation status
+    # Check activation status for non-admin users
     if user.role != models.RoleEnum.ADMIN and not user.is_activated:
         raise ValueError("Please activate your account before logging in. Check your email for activation instructions.")
 
+    # Create an access token
     access_token = core.oauth2.create_access_token(data={"user_id": user.id})
-    return access_token
+
+    # Return both the token and the user's role
+    return access_token, user.role
