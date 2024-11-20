@@ -42,9 +42,9 @@ class Settings(BaseSettings):
     enable_sms_notifications: bool = True  # Feature flag for SMS
     
     class Config:
-        env_file = Path("C://Users//binns//Desktop//backend-core//.env")
+        env_file = Path("/home/ubuntu/backend-core/.env")
 
 settings = Settings(
-    _env_file=Path("C://Users//binns//Desktop//backend-core//.env"), 
+    _env_file=Path("/home/ubuntu/backend-core/.env"), 
     _env_file_encoding="utf-8"
 )
