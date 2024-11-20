@@ -48,12 +48,7 @@ def activate_employee(
 ):
     return employee_service.activate_employee_account(activation_data, db)
 
-@router.post("/send-activation-otp", status_code=status.HTTP_200_OK)
-def send_activation_otp(
-    otp_request: employee.EmployeeOTPRequest,
-    db: Session = Depends(database.get_db)
-):
-    return employee_service.send_employee_otp(otp_request.email, db)
+
 
 # Dynamic routes with path parameters last
 @router.get("/{employee_id}", response_model=employee.EmployeeResponse)

@@ -116,20 +116,8 @@ def activate_employee_account(activation_data: employee.EmployeeActivation, db: 
             detail="Account is already activated"
         )
     
-    # Verify OTP
-    otp_record = db.query(models.OTP).filter(
-        models.OTP.email == activation_data.email,
-        models.OTP.otp_code == activation_data.otp,
-        models.OTP.verified == False,
-        models.OTP.expiration_time > datetime.utcnow()
-    ).first()
     
-    if not otp_record:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired OTP"
-        )
-    
+
     # Update employee information
     if not employee.phone_number:
         employee.phone_number = activation_data.phone_number
