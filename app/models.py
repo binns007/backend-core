@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, TIMESTAMP, Enum as SQLAlchemyEnum,DECIMAL,DateTime, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, TIMESTAMP, Enum as SQLAlchemyEnum,DECIMAL,DateTime, Boolean, Text
 from sqlalchemy.orm import relationship
 import enum
 from sqlalchemy.ext.declarative import declarative_base
@@ -219,3 +219,18 @@ class FormResponse(Base):
 
     form_instance = relationship("FormInstance", back_populates="responses")
     form_field = relationship("FormField")
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    message = Column(Text, nullable=False)
+    title = Column(String, nullable=True)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(TIMESTAMP, server_default="now()")
+    notification_type = Column(String, nullable=False)  # e.g., 'system', 'task', 'message'
+    
+    user = relationship("User", foreign_keys=[user_id])
+    sender = relationship("User", foreign_keys=[sender_id])

@@ -76,3 +76,20 @@ class BatchNotificationFilter(BaseModel):
 
 class BatchNotification(SingleNotification):
     filters: BatchNotificationFilter
+
+class NotificationCreate(BaseModel):
+    user_id: int
+    message: str
+    title: Optional[str] = None
+    notification_type: str = "system"
+
+class NotificationResponse(BaseModel):
+    id: int
+    message: str
+    title: Optional[str]
+    is_read: bool
+    created_at: datetime
+    notification_type: str
+    
+    class Config:
+        from_attributes = True
