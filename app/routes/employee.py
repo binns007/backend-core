@@ -14,6 +14,26 @@ router = APIRouter(
 
 # Static routes first
 
+
+
+@router.get("/notifications", response_model=List[employee.NotificationResponse])
+def get_my_notifications(
+    only_unread: bool = False,
+    limit: int = 20,
+    db: Session = Depends(database.get_db),
+    current_user = Depends(oauth2.get_current_user_authenticated)
+):
+    """
+    Get notifications for the current user
+    """
+    return employee_service.get_user_notifications(
+        current_user.id, 
+        db, 
+        only_unread, 
+        limit
+    )
+
+
 @router.post("/{employee_id}/notify", status_code=status.HTTP_200_OK)
 async def notify_employee_endpoint(
     employee_id: int,
@@ -108,3 +128,39 @@ def delete_employee(
 ):
     return employee_service.delete_employee(employee_id, db, current_user)
 
+@router.post("/notifications", response_model=employee.NotificationResponse)
+def send_in_app_notification(
+    notification_data: employee.NotificationCreate,
+    db: Session = Depends(database.get_db),
+    current_user = Depends(oauth2.get_current_user_authenticated)
+):
+    """
+    Send an in-app notification to a specific user
+    Requires authentication and admin privileges
+    """
+    if current_user.role != models.RoleEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin users can send notifications"
+        )
+    
+    
+    return employee_service.create_in_app_notification(notification_data, db)
+
+
+@router.patch("/notifications/read")
+def mark_notifications_read(
+    notification_ids: List[int],
+    db: Session = Depends(database.get_db),
+    current_user = Depends(oauth2.get_current_user_authenticated)
+):
+    """
+    Mark specific notifications as read
+    """
+    return {
+        "updated_count": employee_service.mark_notifications_as_read(
+            notification_ids, 
+            current_user.id, 
+            db
+        )
+    }

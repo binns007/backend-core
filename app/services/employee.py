@@ -7,11 +7,38 @@ from core.utils import hash, verify
 from core.otp import generate_otp, send_otp
 import random, string
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Dict, Any, List
 from core.notifications import send_email, send_sms, NotificationError
 
 
-
+def get_user_notifications(
+    user_id: int, 
+    db: Session, 
+    only_unread: bool = False, 
+    limit: int = 20
+) -> List[models.Notification]:
+    """
+    Retrieve notifications for a specific user
+    
+    Args:
+        user_id: ID of the user
+        db: Database session
+        only_unread: Flag to fetch only unread notifications
+        limit: Maximum number of notifications to retrieve
+    
+    Returns:
+        List of notification objects
+    """
+    query = db.query(models.Notification).filter(
+        models.Notification.user_id == user_id
+    )
+    
+    if only_unread:
+        query = query.filter(models.Notification.is_read == False)
+    
+    return query.order_by(
+        models.Notification.created_at.desc()
+    ).limit(limit).all()
 
 async def notify_employee(
     employee_id: int,
@@ -398,3 +425,53 @@ def get_available_roles(db: Session, current_user: models.User):
     return roles_info
 
 
+def create_in_app_notification(
+    notification_data: employee.NotificationCreate, 
+    db: Session
+) -> models.Notification:
+    """
+    Create an in-app notification for a specific user
+    
+    Args:
+        notification_data: Notification details
+        db: Database session
+    
+    Returns:
+        Created notification object
+    """
+    new_notification = models.Notification(**notification_data.model_dump())
+    
+    db.add(new_notification)
+    db.commit()
+    db.refresh(new_notification)
+    
+    return new_notification
+
+
+
+def mark_notifications_as_read(
+    notification_ids: List[int], 
+    user_id: int, 
+    db: Session
+) -> int:
+    """
+    Mark specific notifications as read
+    
+    Args:
+        notification_ids: List of notification IDs to mark as read
+        user_id: ID of the user (for security)
+        db: Database session
+    
+    Returns:
+        Number of notifications updated
+    """
+    updated_count = db.query(models.Notification).filter(
+        models.Notification.id.in_(notification_ids),
+        models.Notification.user_id == user_id
+    ).update(
+        {"is_read": True}, 
+        synchronize_session=False
+    )
+    
+    db.commit()
+    return updated_count
