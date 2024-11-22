@@ -16,17 +16,6 @@ router = APIRouter(
     tags=["Form builder"]
 )
 
-@router.post("/templates/", response_model=form.FormTemplateResponse)
-def create_form_template(template: form.FormTemplateCreate,
-                         db: Session = Depends(database.get_db),
-                         current_user: models.User = Depends(oauth2.get_current_user)):
-    dealership_id = current_user.dealership_id
-    new_template = models.FormTemplate(name=template.name, dealership_id = dealership_id)
-    db.add(new_template)
-    db.commit()
-    db.refresh(new_template)
-    return new_template
-
 
 @router.post("/templates/{template_id}/fields/", response_model=List[form.FormFieldResponse])
 def add_fields_to_template(template_id: int, fields: List[form.FormFieldCreate], db: Session = Depends(database.get_db)):
@@ -49,6 +38,18 @@ def add_fields_to_template(template_id: int, fields: List[form.FormFieldCreate],
     except Exception as e:
         print("Error adding fields:", e)
         raise HTTPException(status_code=500, detail="An error occurred while adding fields.")
+
+
+@router.post("/templates/", response_model=form.FormTemplateResponse)
+def create_form_template(template: form.FormTemplateCreate,
+                         db: Session = Depends(database.get_db),
+                         current_user: models.User = Depends(oauth2.get_current_user)):
+    dealership_id = current_user.dealership_id
+    new_template = models.FormTemplate(name=template.name, dealership_id = dealership_id)
+    db.add(new_template)
+    db.commit()
+    db.refresh(new_template)
+    return new_template
 
 
 @router.get("/templates/", response_model=List[form.FormListResponse])
@@ -95,6 +96,7 @@ def activate_form_template(
         models.FormTemplate.dealership_id == template.dealership_id,
         models.FormTemplate.is_active == True
     ).update({"is_active": False})
+    db.commit()
 
     # Activate the new template
     template.is_active = True
@@ -122,7 +124,7 @@ def get_active_form_fields(
     active_template = db.query(models.FormTemplate).filter(
         models.FormTemplate.dealership_id == dealership_id,
         models.FormTemplate.is_active == True
-    ).order_by(models.FormTemplate.last_activated_at.desc()).first()
+    ).first()
 
     if not active_template:
         raise HTTPException(status_code=404, detail="No active form template found for this dealership.")
