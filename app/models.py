@@ -171,6 +171,7 @@ class FormTemplate(Base):
     description = Column(String, nullable=True)
     is_active = Column(Boolean, default=False)  # Flag for active template
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    last_activated_at = Column(TIMESTAMP(timezone=True), nullable=True)  # New column
 
     fields = relationship("FormField", back_populates="template")
     instances = relationship("FormInstance", back_populates="template")
