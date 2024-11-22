@@ -425,25 +425,30 @@ def get_available_roles(db: Session, current_user: models.User):
     return roles_info
 
 
-def create_in_app_notification(
+async def create_in_app_notification(
     notification_data: employee.NotificationCreate, 
     db: Session
 ) -> models.Notification:
     """
-    Create an in-app notification for a specific user
-    
-    Args:
-        notification_data: Notification details
-        db: Database session
-    
-    Returns:
-        Created notification object
+    Create and broadcast an in-app notification
     """
     new_notification = models.Notification(**notification_data.model_dump())
     
     db.add(new_notification)
     db.commit()
     db.refresh(new_notification)
+    
+    # Broadcast the notification
+    from websockets import notification_manager  # Local import to avoid circular
+    await notification_manager.broadcast_to_user(
+        new_notification.user_id, 
+        {
+            "id": new_notification.id,
+            "message": new_notification.message,
+            "title": new_notification.title,
+            "created_at": new_notification.created_at.isoformat()
+        }
+    )
     
     return new_notification
 

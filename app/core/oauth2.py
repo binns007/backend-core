@@ -77,3 +77,25 @@ def get_current_user_authenticated(
             detail="Authentication required"
         )
     return current_user
+
+def get_current_user_from_token(token: str, db: Session):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"}
+    )
+
+    token = verify_access_token_user(token, credentials_exception)
+    user = db.query(models.User).filter(models.User.id == token.id).first()
+
+    # Check activation status only for non-admin users
+    if user and not user.is_activated and user.role != models.RoleEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account not activated. Please activate your account first."
+        )
+
+    if not user:
+        raise credentials_exception
+
+    return user
