@@ -29,7 +29,10 @@ class FormFieldResponse(FormFieldCreate):
 
 class FormTemplateCreate(BaseModel):
     name: str
-    
+class FormListResponse(BaseModel):
+    id: int
+    name: str
+
 
 class FormTemplateResponse(BaseModel):
     id: int
