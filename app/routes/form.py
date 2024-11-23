@@ -364,6 +364,52 @@ def submit_sales_data(
 
 
 
+@router.get("/forms/{form_instance_id}/sales-data", response_model=dict)
+def get_sales_data(
+    form_instance_id: int,
+    db: Session = Depends(database.get_db),
+):
+    """
+    Fetch customer data submitted by the sales executive using form_instance_id.
+    """
+    # Fetch the form instance
+    form_instance = db.query(models.FormInstance).filter(
+        models.FormInstance.id == form_instance_id
+    ).first()
+
+    if not form_instance:
+        raise HTTPException(status_code=404, detail="Form instance not found.")
+
+    # Ensure only the creator of the form instance can access it
+    
+
+    # Fetch responses filled by the sales executive
+    responses = (
+        db.query(models.FormResponse)
+        .join(models.FormField, models.FormResponse.form_field_id == models.FormField.id)
+        .filter(
+            models.FormResponse.form_instance_id == form_instance_id,
+            models.FormField.filled_by == "sales_executive",
+        )
+        .all()
+    )
+
+    if not responses:
+        raise HTTPException(status_code=404, detail="No data found for this form instance.")
+
+    # Prepare response data
+    sales_data = {
+        "form_instance_id": form_instance.id,
+        "customer_name": form_instance.customer_name,
+        "created_at": form_instance.created_at,
+        "responses": [
+            {"field_name": response.form_field.name, "value": response.value}
+            for response in responses
+        ],
+    }
+
+    return sales_data
+
 
 # @router.post("/forms/{form_instance_id}/submit/customer", response_model=dict)
 # def submit_customer_data(
