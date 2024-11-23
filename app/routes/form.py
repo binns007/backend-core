@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
-from typing import List
+from typing import List,Dict
 from schemas import form
 from services import employee as employee_service
 from core import oauth2, utils
 import database
+from schemas import employee
 import models
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -15,6 +16,126 @@ router = APIRouter(
     prefix="/form-builder",
     tags=["Form builder"]
 )
+
+
+
+
+async def notify_sales_executive(
+    sales_exec_id: int,
+    customer_name: str,
+    form_id: int,
+    db: Session
+) -> None:
+    """
+    Send notification to sales executive about customer form submission
+    """
+    notification_data = employee.NotificationCreate(
+        user_id=sales_exec_id,
+        title="Form Submission Notification",
+        message=f"Customer {customer_name} has submitted form #{form_id}",
+        priority="normal"
+    )
+    
+    await employee_service.create_in_app_notification(
+        notification_data=notification_data,
+        db=db
+    )
+
+
+@router.post("/forms/{form_instance_id}/submit/customer", response_model=Dict)
+async def submit_customer_data(
+    form_instance_id: int,
+    data: Dict,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Customer submits their part of the form data and notifies the sales executive
+    """
+    # Fetch the form instance with the sales executive information
+    form_instance = db.query(models.FormInstance).join(
+        models.User, models.FormInstance.generated_by == models.User.id
+    ).filter(
+        models.FormInstance.id == form_instance_id
+    ).first()
+
+    if not form_instance:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Form instance not found"
+        )
+
+    # Fetch the active template
+    template = form_instance.template
+    if not template.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Form template is not active"
+        )
+
+    # Validate fields to be filled by customer
+    fields = db.query(models.FormField).filter(
+        models.FormField.template_id == template.id,
+        models.FormField.filled_by == "customer"
+    ).all()
+
+    field_map = {field.name: field for field in fields}
+
+    # Validate required fields
+    for field in fields:
+        if field.is_required and field.name not in data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Required field missing: {field.name}"
+            )
+
+    responses = []
+    for field_name, value in data.items():
+        if field_name not in field_map:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unexpected field: {field_name}"
+            )
+
+        field = field_map[field_name]
+
+        if field.field_type == "image":
+            filename = utils.generate_unique_filename(value.filename)
+            # Upload the image to S3 and get the URL
+            s3_url = utils.upload_image_to_s3(value, "hogspot", filename)
+            responses.append(models.FormResponse(
+                form_instance_id=form_instance.id,
+                form_field_id=field.id,
+                value=s3_url
+            ))
+        else:
+            # Handle text, number, or date types
+            responses.append(models.FormResponse(
+                form_instance_id=form_instance.id,
+                form_field_id=field.id,
+                value=str(value)  # Convert all values to string for storage
+            ))
+
+    # Save responses to the database
+    db.add_all(responses)
+    
+    # Update form status
+    form_instance.customer_submitted = True
+    form_instance.customer_submitted_at = func.now()
+    
+    db.commit()
+
+    # Send notification to sales executive
+    await notify_sales_executive(
+        sales_exec_id=form_instance.generated_by,
+        customer_name=form_instance.customer_name,
+        form_id=form_instance.id,
+        db=db
+    )
+
+    return {
+        "message": "Customer data submitted successfully",
+        "form_id": form_instance.id
+    }
 
 
 @router.post("/templates/{template_id}/fields/", response_model=List[form.FormFieldResponse])

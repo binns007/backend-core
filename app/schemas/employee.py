@@ -80,8 +80,11 @@ class BatchNotification(SingleNotification):
 class NotificationCreate(BaseModel):
     user_id: int
     message: str
-    title: Optional[str] = None
-    notification_type: str = "system"
+    title: str
+    priority: Optional[str] = "normal"
+    
+    class Config:
+        from_attributes = True
 
 class NotificationResponse(BaseModel):
     id: int
