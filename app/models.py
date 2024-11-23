@@ -207,6 +207,7 @@ class FormInstance(Base):
 
     template = relationship("FormTemplate", back_populates="instances")
     responses = relationship("FormResponse", back_populates="form_instance")
+    chat_session = relationship("ChatSession", back_populates="form_instance", uselist=False)
 
 
 class FormResponse(Base):
@@ -233,4 +234,33 @@ class Notification(Base):
     notification_type = Column(String, nullable=False)  
     
     user = relationship("User", foreign_keys=[user_id])
+    sender = relationship("User", foreign_keys=[sender_id])
+
+
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    form_instance_id = Column(Integer, ForeignKey("form_instances.id"), nullable=False)
+    customer_name = Column(String, nullable=False)
+    employee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    status = Column(String, default="active")  # active, closed
+    created_at = Column(TIMESTAMP, server_default="now()")
+    closed_at = Column(TIMESTAMP, nullable=True)
+    
+    form_instance = relationship("FormInstance", back_populates="chat_session")
+    messages = relationship("ChatMessage", back_populates="session")
+    employee = relationship("User", foreign_keys=[employee_id])
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("chat_sessions.id"), nullable=False)
+    sender_type = Column(String, nullable=False)  # "customer" or "employee"
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # NULL for customer
+    content = Column(Text, nullable=False)
+    created_at = Column(TIMESTAMP, server_default="now()")
+    
+    session = relationship("ChatSession", back_populates="messages")
     sender = relationship("User", foreign_keys=[sender_id])
