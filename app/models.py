@@ -203,7 +203,6 @@ class FormInstance(Base):
     template_id = Column(Integer, ForeignKey("form_templates.id"), nullable=False)
     generated_by = Column(Integer, nullable=False)  # Sales executive ID
     customer_name = Column(String, nullable=True)
-    customer_email = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     template = relationship("FormTemplate", back_populates="instances")
