@@ -49,8 +49,7 @@ class RoleResponse(BaseModel):
     name: str
     description: str
 
-from pydantic import BaseModel, EmailStr
-from typing import List, Optional
+
 from enum import Enum
 
 class NotificationType(str, Enum):
