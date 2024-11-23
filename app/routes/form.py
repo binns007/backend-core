@@ -4,7 +4,7 @@ from sqlalchemy.sql import func
 from typing import List
 from schemas import form
 from services import employee as employee_service
-from core import oauth2
+from core import oauth2, utils
 import database
 import models
 import logging
@@ -138,3 +138,171 @@ def get_active_form_fields(
         raise HTTPException(status_code=404, detail="No fields found for the active form.")
 
     return fields
+
+
+
+@router.post("/forms/create", response_model=dict)
+def create_form_instance(
+    customer_name: str,
+    customer_email: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user)
+):
+    """
+    Sales executive generates a new form instance for a customer.
+    """
+    dealership_id = current_user.dealership_id
+    if not dealership_id:
+        raise HTTPException(status_code=404, detail="Sales executive is not associated with a dealership.")
+
+    # Fetch the active form template for the dealership
+    template = db.query(models.FormTemplate).filter(
+        models.FormTemplate.dealership_id == dealership_id,
+        models.FormTemplate.is_active == True
+    ).first()
+
+    if not template:
+        raise HTTPException(status_code=404, detail="No active form template found for this dealership.")
+
+    # Create a new form instance
+    form_instance = models.FormInstance(
+        template_id=template.id,
+        generated_by=current_user.id,
+        customer_name=customer_name,
+        customer_email=customer_email
+    )
+
+    db.add(form_instance)
+    db.commit()
+    db.refresh(form_instance)
+
+    return {"message": "Form instance created successfully.", "form_instance_id": form_instance.id}
+
+
+
+
+@router.post("/forms/{form_instance_id}/submit/sales", response_model=dict)
+def submit_sales_data(
+    form_instance_id: int,
+    data: dict,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user),
+):
+    """
+    Sales executive submits their part of the form data.
+    """
+    # Fetch the form instance
+    form_instance = db.query(models.FormInstance).filter(
+        models.FormInstance.id == form_instance_id,
+        models.FormInstance.generated_by == current_user.id
+    ).first()
+
+    if not form_instance:
+        raise HTTPException(status_code=404, detail="Form instance not found or unauthorized.")
+
+    # Fetch the active template
+    template = form_instance.template
+    if not template.is_active:
+        raise HTTPException(status_code=400, detail="Form template is not active.")
+
+    # Validate fields to be filled by sales executive
+    fields = db.query(models.FormField).filter(
+        models.FormField.template_id == template.id,
+        models.FormField.filled_by == "sales_executive"
+    ).all()
+
+    field_map = {field.name: field for field in fields}
+
+    responses = []
+    for field_name, value in data.items():
+        if field_name not in field_map:
+            raise HTTPException(status_code=400, detail=f"Unexpected field: {field_name}.")
+
+        field = field_map[field_name]
+
+        if field.field_type == "image":
+            filename = utils.generate_unique_filename(value.filename)
+
+            # Upload the image to S3 and get the URL
+            s3_url =utils.upload_image_to_s3(value,"hogspot",filename)
+            responses.append(models.FormResponse(
+                form_instance_id=form_instance.id,
+                form_field_id=field.id,
+                value=s3_url
+            ))
+        else:
+            # Handle text or other simple types
+            responses.append(models.FormResponse(
+                form_instance_id=form_instance.id,
+                form_field_id=field.id,
+                value=value
+            ))
+
+    # Save responses to the database
+    db.add_all(responses)
+    db.commit()
+
+    return {"message": "Sales data submitted successfully."}
+
+
+
+
+# @router.post("/forms/{form_instance_id}/submit/customer", response_model=dict)
+# def submit_customer_data(
+#     form_instance_id: int,
+#     data: dict,
+#     db: Session = Depends(database.get_db),
+#     s3_client: S3Client = Depends(get_s3_client),  # Inject S3 client
+# ):
+#     """
+#     Customer submits their part of the form data.
+#     """
+#     # Fetch the form instance
+#     form_instance = db.query(models.FormInstance).filter(
+#         models.FormInstance.id == form_instance_id
+#     ).first()
+
+#     if not form_instance:
+#         raise HTTPException(status_code=404, detail="Form instance not found.")
+
+#     # Fetch the active template
+#     template = form_instance.template
+#     if not template.is_active:
+#         raise HTTPException(status_code=400, detail="Form template is not active.")
+
+#     # Validate fields to be filled by customer
+#     fields = db.query(models.FormField).filter(
+#         models.FormField.template_id == template.id,
+#         models.FormField.filled_by == "customer"
+#     ).all()
+
+#     field_map = {field.name: field for field in fields}
+
+#     responses = []
+#     for field_name, value in data.items():
+#         if field_name not in field_map:
+#             raise HTTPException(status_code=400, detail=f"Unexpected field: {field_name}.")
+
+#         field = field_map[field_name]
+
+#         if field.field_type == "image":
+#             # Upload the image to S3 and get the URL
+#             s3_url = upload_image_to_s3(s3_client, value, folder="form-images")
+#             responses.append(models.FormResponse(
+#                 form_instance_id=form_instance.id,
+#                 form_field_id=field.id,
+#                 value=s3_url
+#             ))
+#         else:
+#             # Handle text or other simple types
+#             responses.append(models.FormResponse(
+#                 form_instance_id=form_instance.id,
+#                 form_field_id=field.id,
+#                 value=value
+#             ))
+
+#     # Save responses to the database
+#     db.add_all(responses)
+#     db.commit()
+
+#     return {"message": "Customer data submitted successfully."}
