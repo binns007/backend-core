@@ -4,7 +4,7 @@ from sqlalchemy.sql import func
 from typing import List
 from schemas import form
 from services import employee as employee_service
-from core import oauth2
+from core import oauth2, utils
 import database
 import models
 import logging
@@ -187,7 +187,6 @@ def submit_sales_data(
     data: dict,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(oauth2.get_current_user),
-    s3_client: S3Client = Depends(get_s3_client),  # Inject S3 client
 ):
     """
     Sales executive submits their part of the form data.
@@ -222,8 +221,10 @@ def submit_sales_data(
         field = field_map[field_name]
 
         if field.field_type == "image":
+            filename = utils.generate_unique_filename(value.filename)
+
             # Upload the image to S3 and get the URL
-            s3_url = upload_image_to_s3(s3_client, value, folder="form-images")
+            s3_url =utils.upload_image_to_s3(value,"hogspot",filename)
             responses.append(models.FormResponse(
                 form_instance_id=form_instance.id,
                 form_field_id=field.id,
