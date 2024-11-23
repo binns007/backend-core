@@ -265,7 +265,6 @@ def get_active_form_fields(
 @router.post("/forms/create", response_model=dict)
 def create_form_instance(
     customer_name: str,
-    customer_email: str,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(oauth2.get_current_user)
 ):
@@ -289,9 +288,7 @@ def create_form_instance(
     form_instance = models.FormInstance(
         template_id=template.id,
         generated_by=current_user.id,
-        customer_name=customer_name,
-        customer_email=customer_email
-    )
+        customer_name=customer_name    )
 
     db.add(form_instance)
     db.commit()

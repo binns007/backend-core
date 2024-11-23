@@ -1,7 +1,7 @@
 """Add last_activated_at to FormTemplate
 
 Revision ID: b347d1364bbf
-Revises: 6f123adba6ea
+Revises: 815d389bf51a
 Create Date: 2024-11-22 11:05:22.925412
 
 """
