@@ -129,10 +129,10 @@ def delete_employee(
     return employee_service.delete_employee(employee_id, db, current_user)
 
 @router.post("/notifications", response_model=employee.NotificationResponse)
-def send_in_app_notification(
+async def send_in_app_notification(
     notification_data: employee.NotificationCreate,
     db: Session = Depends(database.get_db),
-    current_user = Depends(oauth2.get_current_user_authenticated)
+    current_user: models.User = Depends(oauth2.get_current_user_authenticated)
 ):
     """
     Send an in-app notification to a specific user
@@ -144,8 +144,7 @@ def send_in_app_notification(
             detail="Only admin users can send notifications"
         )
     
-    
-    return employee_service.create_in_app_notification(notification_data, db)
+    return await employee_service.create_in_app_notification(notification_data, db, current_user)
 
 
 @router.patch("/notifications/read")

@@ -231,7 +231,7 @@ class Notification(Base):
     title = Column(String, nullable=True)
     is_read = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, server_default="now()")
-    notification_type = Column(String, nullable=False)  # e.g., 'system', 'task', 'message'
+    notification_type = Column(String, nullable=False)  
     
     user = relationship("User", foreign_keys=[user_id])
     sender = relationship("User", foreign_keys=[sender_id])

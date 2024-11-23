@@ -427,27 +427,54 @@ def get_available_roles(db: Session, current_user: models.User):
 
 async def create_in_app_notification(
     notification_data: employee.NotificationCreate, 
-    db: Session
+    db: Session,
+    current_user: models.User = None
 ) -> models.Notification:
     """
     Create and broadcast an in-app notification
+    
+    Args:
+        notification_data: NotificationCreate schema with notification details
+        db: Database session
+        current_user: Currently authenticated user (sender)
+        
+    Returns:
+        The created Notification object
     """
-    new_notification = models.Notification(**notification_data.model_dump())
+    # Create notification object with sender information
+    new_notification = models.Notification(
+        user_id=notification_data.user_id,
+        sender_id=current_user.id if current_user else None,
+        message=notification_data.message,
+        title=notification_data.title,
+        is_read=False,
+        notification_type="system",  # or could be based on the context
+        # created_at will be set automatically by server_default="now()"
+    )
     
     db.add(new_notification)
     db.commit()
     db.refresh(new_notification)
     
+    # Prepare notification data for WebSocket broadcast
+    websocket_data = {
+        "id": new_notification.id,
+        "message": new_notification.message,
+        "title": new_notification.title,
+        "is_read": new_notification.is_read,
+        "created_at": new_notification.created_at.isoformat(),
+        "notification_type": new_notification.notification_type,
+        "sender": {
+            "id": current_user.id,
+            
+        } if current_user else None
+    }
+    
     # Broadcast the notification
-    from websockets import notification_manager  # Local import to avoid circular
+    from services.websockets import notification_manager
     await notification_manager.broadcast_to_user(
         new_notification.user_id, 
-        {
-            "id": new_notification.id,
-            "message": new_notification.message,
-            "title": new_notification.title,
-            "created_at": new_notification.created_at.isoformat()
-        }
+        websocket_data
     )
     
     return new_notification
