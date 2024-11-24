@@ -153,6 +153,7 @@ class Vehicle(Base):
     first_service_time = Column(String, nullable=True)
     service_kms = Column(Integer, nullable=True)
     ex_showroom_price = Column(Float, nullable=False)
+    total_price = Column(Float, nullable=False)
 
     dealership = relationship("Dealership", back_populates="vehicles")
     customers = relationship("Customer", back_populates="vehicle")
