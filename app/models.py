@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, TIMESTAMP, Enum as SQLAlchemyEnum,DECIMAL,DateTime, Boolean, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, TIMESTAMP, Enum as SQLAlchemyEnum,DECIMAL,DateTime, Boolean, Text, Float
 from sqlalchemy.orm import relationship
 import enum
 from sqlalchemy.ext.declarative import declarative_base
@@ -117,6 +117,12 @@ class Customer(Base):
     __tablename__ = "customers"
     
     id = Column(Integer, primary_key=True, index=True)
+    form_instance_id = Column(Integer, ForeignKey("form_instances.id"), nullable=False)
+    total_price = Column(Float, nullable=False)  # Calculated total amount
+    amount_paid = Column(Float, default=0, nullable=False)
+    balance_amount = Column(Float, default=0, nullable=False)
+
+
     dealership_id = Column(Integer, ForeignKey("dealerships.id", ondelete="CASCADE"))
     branch_id = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"))
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
@@ -127,28 +133,30 @@ class Customer(Base):
     
     vehicle_id = Column(Integer, ForeignKey('vehicles.id'))
     vehicle = relationship("Vehicle", back_populates="customers")
+    form_instance = relationship("FormInstance", back_populates="customer")
+    payments = relationship("CustomerPayment", back_populates="customer")
+
 
     dealership = relationship("Dealership", back_populates="customers")
     branch = relationship("Branch", back_populates="customers")
     user = relationship("User")
 
 
+
+
 class Vehicle(Base):
     __tablename__ = "vehicles"
-    
+
     id = Column(Integer, primary_key=True, index=True)
+    dealership_id = Column(Integer, ForeignKey("dealerships.id"), nullable=False)
     name = Column(String, nullable=False)
-    variant = Column(String, nullable=False)
-    color = Column(String, nullable=True)
-    ex_showroom_price = Column(DECIMAL(10, 2))
-    tax = Column(DECIMAL(10, 2))
-    insurance = Column(DECIMAL(10, 2))
-    tp_registration = Column(DECIMAL(10, 2))
-    man_accessories = Column(DECIMAL(10, 2))
-    optional_accessories = Column(DECIMAL(10, 2))
-    
-    # Relationships
+    first_service_time = Column(String, nullable=True)
+    service_kms = Column(Integer, nullable=True)
+    ex_showroom_price = Column(Float, nullable=False)
+
+    dealership = relationship("Dealership", back_populates="vehicles")
     customers = relationship("Customer", back_populates="vehicle")
+
 
 
 class FilledByEnum(str, enum.Enum):
@@ -161,6 +169,7 @@ class FieldTypeEnum(str, enum.Enum):
     NUMBER = "number"
     IMAGE = "image" 
     DATE = "date"
+    AMOUNT = "amount"
     
 
 class FormTemplate(Base):
@@ -204,6 +213,8 @@ class FormInstance(Base):
     generated_by = Column(Integer, nullable=False)  # Sales executive ID
     customer_name = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    
+    customer = relationship("Customer", back_populates="form_instance", uselist=False)
 
     template = relationship("FormTemplate", back_populates="instances")
     responses = relationship("FormResponse", back_populates="form_instance")

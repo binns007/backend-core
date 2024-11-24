@@ -13,6 +13,7 @@ class FieldTypeEnum(str, Enum):
     NUMBER = "number"
     IMAGE = "image"
     DATE = "date"
+    AMOUNT = "amount"
 
 class FormFieldCreate(BaseModel):
     name: str
