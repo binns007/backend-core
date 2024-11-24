@@ -298,7 +298,6 @@ def create_form_instance(
 
 
 
-
 @router.post("/forms/{form_instance_id}/submit/sales", response_model=dict)
 def submit_sales_data(
     form_instance_id: int,
@@ -342,7 +341,7 @@ def submit_sales_data(
             filename = utils.generate_unique_filename(value.filename)
 
             # Upload the image to S3 and get the URL
-            s3_url =utils.upload_image_to_s3(value,"hogspot",filename)
+            s3_url = utils.upload_image_to_s3(value, "hogspot", filename)
             responses.append(models.FormResponse(
                 form_instance_id=form_instance.id,
                 form_field_id=field.id,
@@ -360,8 +359,7 @@ def submit_sales_data(
     db.add_all(responses)
     db.commit()
 
-    return {"message": "Sales data submitted successfully","form_instance_id": responses.form_instance_id}
-
+    return {"message": "Sales data submitted successfully", "form_instance_id": form_instance.id}
 
 
 @router.get("/forms/{form_instance_id}/sales-data", response_model=dict)
