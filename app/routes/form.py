@@ -360,7 +360,7 @@ def submit_sales_data(
     db.add_all(responses)
     db.commit()
 
-    return {"message": "Sales data submitted successfully."}
+    return {"message": "Sales data submitted successfully","form_instance_id": responses.form_instance_id}
 
 
 
