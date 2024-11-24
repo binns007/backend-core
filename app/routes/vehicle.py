@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from typing import List,Dict
 from schemas import vehicle
+from core import oauth2
 import database
 import models
 import logging
@@ -16,15 +17,15 @@ router = APIRouter(
 
 
 @router.post("/vehicles/", response_model=vehicle.VehicleResponse, status_code=201)
-def create_vehicle(vehicle: vehicle.VehicleCreate, db: Session = Depends(database.get_db)):
-    # Validate that the dealership exists (optional, if relevant)
-    dealership = db.query(models.Dealership).filter_by(id=vehicle.dealership_id).first()
-    if not dealership:
-        raise HTTPException(status_code=404, detail="Dealership not found")
+def create_vehicle(vehicle: vehicle.VehicleCreate,
+                    db: Session = Depends(database.get_db),
+                    current_user: models.User = Depends(oauth2.get_current_user_authenticated)
+):
+
 
     # Create the new vehicle record
     new_vehicle = models.Vehicle(
-        dealership_id=vehicle.dealership_id,
+        dealership_id=current_user.dealership_id,
         name=vehicle.name,
         first_service_time=vehicle.first_service_time,
         service_kms=vehicle.service_kms,

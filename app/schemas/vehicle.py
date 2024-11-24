@@ -3,7 +3,6 @@ from typing import Optional
 
 
 class VehicleCreate(BaseModel):
-    dealership_id: int
     name: str
     first_service_time: Optional[str] = None
     service_kms: Optional[int] = None

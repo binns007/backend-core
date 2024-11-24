@@ -27,9 +27,9 @@ class Dealership(Base):
     num_branches = Column(Integer, nullable=False)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-
+    vehicles = relationship("Vehicle", back_populates="dealership")
     roles = relationship("DealershipRole", back_populates="dealership")
-    payments = relationship("Payment", back_populates="dealership")
+    # payments = relationship("Payment", back_populates="dealership")
     branches = relationship("Branch", back_populates="dealership")
     users = relationship("User", back_populates="dealership",foreign_keys="[User.dealership_id]")
     customers = relationship("Customer", back_populates="dealership")
@@ -89,18 +89,18 @@ class User(Base):
 
 
 
-class Payment(Base):
-    __tablename__ = "payments"
+# class Payment(Base):
+#     __tablename__ = "payments"
     
-    id = Column(Integer, primary_key=True, index=True)
-    dealership_id = Column(Integer, ForeignKey("dealerships.id", ondelete="CASCADE"))  # Add this foreign key
+#     id = Column(Integer, primary_key=True, index=True)
+#     dealership_id = Column(Integer, ForeignKey("dealerships.id", ondelete="CASCADE"))  # Add this foreign key
 
-    status = Column(String, default="Pending")  # Payment status: Pending, Completed, etc.
-    amount = Column(DECIMAL(10, 2))  # Amount paid
-    payment_date = Column(TIMESTAMP, nullable=True)  # Date of payment
-    transaction_id = Column(String, nullable=True)  # Optional transaction ID
+#     status = Column(String, default="Pending")  # Payment status: Pending, Completed, etc.
+#     amount = Column(DECIMAL(10, 2))  # Amount paid
+#     payment_date = Column(TIMESTAMP, nullable=True)  # Date of payment
+#     transaction_id = Column(String, nullable=True)  # Optional transaction ID
 
-    dealership = relationship("Dealership", back_populates="payments")
+#     dealership = relationship("Dealership", back_populates="payments")
 
     
 
@@ -134,7 +134,7 @@ class Customer(Base):
     vehicle_id = Column(Integer, ForeignKey('vehicles.id'))
     vehicle = relationship("Vehicle", back_populates="customers")
     form_instance = relationship("FormInstance", back_populates="customer")
-    payments = relationship("CustomerPayment", back_populates="customer")
+    # payments = relationship("CustomerPayment", back_populates="customer")
 
 
     dealership = relationship("Dealership", back_populates="customers")
@@ -152,7 +152,6 @@ class Vehicle(Base):
     name = Column(String, nullable=False)
     first_service_time = Column(String, nullable=True)
     service_kms = Column(Integer, nullable=True)
-    ex_showroom_price = Column(Float, nullable=False)
     total_price = Column(Float, nullable=False)
 
     dealership = relationship("Dealership", back_populates="vehicles")
