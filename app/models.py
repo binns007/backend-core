@@ -170,6 +170,7 @@ class FieldTypeEnum(str, enum.Enum):
     IMAGE = "image" 
     DATE = "date"
     AMOUNT = "amount"
+    VEHICLE = "vehicle"
     
 
 class FormTemplate(Base):
