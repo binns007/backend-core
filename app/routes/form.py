@@ -361,6 +361,60 @@ def submit_sales_data(
 
     return {"message": "Sales data submitted successfully", "form_instance_id": form_instance.id}
 
+@router.post("/forms/amount-data/{form_instance_id}/submit/sales", response_model=dict)
+def submit_customer_data(
+    form_instance_id: int,
+    total_price: float,
+    amount_paid: float,
+    balance_amount: float,
+    vehicle_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user),
+):
+    """
+    Save summarized customer data (pricing and vehicle) into the customers table.
+    """
+    # Validate form instance ownership and existence
+    form_instance = db.query(models.FormInstance).filter(
+        models.FormInstance.id == form_instance_id,
+        models.FormInstance.generated_by == current_user.id
+    ).first()
+
+    if not form_instance:
+        raise HTTPException(
+            status_code=404,
+            detail="Form instance not found or unauthorized."
+        )
+
+    # Check if a customer record already exists for this form instance
+    existing_customer = db.query(models.Customer).filter(
+        models.Customer.form_instance_id == form_instance_id
+    ).first()
+
+    if existing_customer:
+        raise HTTPException(
+            status_code=400,
+            detail="Customer data for this form instance already exists."
+        )
+
+    # Create a new customer record
+    new_customer = models.Customer(
+        form_instance_id=form_instance_id,
+        vehicle_id=vehicle_id,
+        total_price=total_price,
+        amount_paid=amount_paid,
+        balance_amount=balance_amount,
+    )
+
+    db.add(new_customer)
+    db.commit()
+    db.refresh(new_customer)
+
+    return {
+        "message": "Customer data submitted successfully",
+        "customer_id": new_customer.id,
+    }
+
 
 @router.get("/forms/{form_instance_id}/sales-data", response_model=dict)
 def get_sales_data(
