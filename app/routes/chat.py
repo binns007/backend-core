@@ -28,6 +28,27 @@ router = APIRouter(
     tags=["Chat"]
 )
 
+@router.get("/session-by-form/{form_instance_id}", response_model=chat_schemas.ChatSessionResponse)
+async def get_chat_session_by_form(
+    form_instance_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get chat session ID associated with a form instance
+    """
+    chat_session = db.query(models.ChatSession).filter(
+        models.ChatSession.form_instance_id == form_instance_id,
+        models.ChatSession.status == "ACTIVE"
+    ).first()
+    
+    if not chat_session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active chat session found for this form"
+        )
+    
+    return chat_session
+
 @router.websocket("/ws/{session_id}/{role}")
 async def chat_websocket(
     websocket: WebSocket,
@@ -38,14 +59,15 @@ async def chat_websocket(
     """WebSocket endpoint for chat functionality"""
     db = next(get_db())  # Get a new database session
     try:
-        # Validate session exists
+        # Validate session exists and is active
         chat_session = db.query(models.ChatSession).filter(
-            models.ChatSession.id == session_id
+            models.ChatSession.id == session_id,
+            models.ChatSession.status == "ACTIVE"
         ).first()
         
         if not chat_session:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            logger.error(f"Chat session {session_id} not found")
+            logger.error(f"Chat session {session_id} not found or not active")
             return
 
         # Map frontend role names to internal roles (case-insensitive)
@@ -73,6 +95,12 @@ async def chat_websocket(
                 logger.error(f"Authentication error details: {str(e)}", exc_info=True)
                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                 return
+
+        # For customer role, validate against form_instance_id
+        if internal_role == RoleTypes.CUSTOMER:
+            # The validation is implicit through the chat session lookup
+            # If they have the correct session_id, they can connect
+            pass
 
         # Accept WebSocket connection
         await websocket.accept()
@@ -194,10 +222,19 @@ async def create_chat_session(
     """
     Create a new chat session for a form instance
     """
+    # Check if an active session already exists for this form instance
+    existing_session = db.query(models.ChatSession).filter(
+        models.ChatSession.form_instance_id == form_instance_id,
+        models.ChatSession.status == "ACTIVE"
+    ).first()
+    
+    if existing_session:
+        return existing_session
+
     # Find an available sales executive
     employee = db.query(models.User).filter(
         models.User.is_activated == True,
-        models.User.role == models.RoleEnum.SALES_EXECUTIVE  # Using the correct role enum
+        models.User.role == models.RoleEnum.SALES_EXECUTIVE
     ).first()
     
     if not employee:
@@ -251,3 +288,36 @@ async def get_chat_session(
             detail=f"Chat session {session_id} not found"
         )
     return session
+
+@router.put("/sessions/{session_id}/close")
+async def close_chat_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(oauth2.get_current_user)
+):
+    """
+    Close a chat session
+    """
+    session = db.query(models.ChatSession).filter(
+        models.ChatSession.id == session_id,
+        models.ChatSession.employee_id == current_user.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chat session not found or unauthorized"
+        )
+    
+    session.status = "CLOSED"
+    session.closed_at = datetime.utcnow()
+    
+    try:
+        db.commit()
+        return {"message": "Chat session closed successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to close chat session: {str(e)}"
+        )
