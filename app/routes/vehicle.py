@@ -7,6 +7,7 @@ from core import oauth2
 import database
 import models
 import logging
+from services import vehicle as vehicle_service
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -36,3 +37,15 @@ def create_vehicle(vehicle: vehicle.VehicleCreate,
     db.refresh(new_vehicle)
 
     return new_vehicle
+
+
+
+@router.get("/vehicles", response_model=list[vehicle.VehicleResponse])
+def get_vehicles(
+    db: Session = Depends(database.get_db),
+    current_user=Depends(oauth2.get_current_user),
+):
+    """
+    Fetch all vehicles for the current user's dealership.
+    """
+    return vehicle_service.get_vehicles_for_dealership(db, current_user)

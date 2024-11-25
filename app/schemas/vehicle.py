@@ -11,7 +11,6 @@ class VehicleCreate(BaseModel):
 
 class VehicleResponse(BaseModel):
     id: int
-    dealership_id: int
     name: str
     first_service_time: Optional[str]
     service_kms: Optional[int]
