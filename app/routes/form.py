@@ -228,6 +228,38 @@ def activate_form_template(
     return {"message": f"Template '{template.name}' has been activated successfully."}
 
 
+@router.get("/forms/customer-fields/{form_id}/fields", response_model=List[form.FormFieldResponse])
+def get_form_fields_by_form_id(
+    form_id: int,
+    db: Session = Depends(database.get_db),
+):
+    """
+    Fetch fields of a specific form template using the form ID.
+    """
+
+    # Fetch the form instance by form_id
+    form_instance = db.query(models.FormInstance).filter(
+        models.FormInstance.id == form_id
+    ).first()
+
+    if not form_instance:
+        raise HTTPException(status_code=404, detail="Form instance not found.")
+
+    # Fetch the associated template for the form instance
+    template = form_instance.template
+    if not template:
+        raise HTTPException(status_code=404, detail="Form template not found.")
+
+    # Fetch all fields associated with the template
+    fields = db.query(models.FormField).filter(
+        models.FormField.template_id == template.id
+    ).all()
+
+    if not fields:
+        raise HTTPException(status_code=404, detail="No fields found for the form.")
+
+    return fields
+
 @router.get("/forms/active", response_model=List[form.FormFieldResponse])
 def get_active_form_fields(
     db: Session = Depends(database.get_db),
