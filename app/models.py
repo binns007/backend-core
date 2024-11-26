@@ -163,15 +163,13 @@ class FilledByEnum(str, enum.Enum):
     SALES_EXECUTIVE = "sales_executive"
     CUSTOMER = "customer"
 
-# Enum to define the data type for each form field
 class FieldTypeEnum(str, enum.Enum):
-    TEXT = "text"  # "TEXT" is the member name, and "text" is the value
+    TEXT = "text"
     NUMBER = "number"
-    IMAGE = "image" 
+    IMAGE = "image"
     DATE = "date"
     AMOUNT = "amount"
     VEHICLE = "vehicle"
-    
 
 class FormTemplate(Base):
     __tablename__ = "form_templates"
