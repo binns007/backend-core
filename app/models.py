@@ -164,12 +164,12 @@ class FilledByEnum(str, enum.Enum):
     CUSTOMER = "customer"
 
 class FieldTypeEnum(str, enum.Enum):
-    TEXT = "text"
-    NUMBER = "number"
-    IMAGE = "image"
-    DATE = "date"
-    AMOUNT = "amount"
-    VEHICLE = "vehicle"
+    text = "text"
+    number = "number"
+    image = "image"
+    date = "date"
+    amount = "amount"
+    vehicle = "vehicle"
 
 class FormTemplate(Base):
     __tablename__ = "form_templates"
