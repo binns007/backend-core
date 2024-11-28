@@ -126,9 +126,6 @@ class Customer(Base):
     dealership_id = Column(Integer, ForeignKey("dealerships.id", ondelete="CASCADE"))
     branch_id = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"))
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
-    name = Column(String, nullable=False)
-    phone_number = Column(String)
-    email = Column(String, unique=True)
     created_at = Column(TIMESTAMP, server_default="now()")
     
     vehicle_id = Column(Integer, ForeignKey('vehicles.id'))

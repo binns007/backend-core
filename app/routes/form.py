@@ -449,7 +449,6 @@ def submit_customer_data(
         "customer_id": new_customer.id,
     }
 
-
 @router.get("/forms/{form_instance_id}/sales-data", response_model=dict)
 def get_sales_data(
     form_instance_id: int,
@@ -466,8 +465,13 @@ def get_sales_data(
     if not form_instance:
         raise HTTPException(status_code=404, detail="Form instance not found.")
 
-    # Ensure only the creator of the form instance can access it
-    
+    # Fetch the associated customer using the form_instance_id
+    customer = db.query(models.Customer).filter(
+        models.Customer.form_instance_id == form_instance_id
+    ).first()
+
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found.")
 
     # Fetch responses filled by the sales executive
     responses = (
@@ -486,8 +490,15 @@ def get_sales_data(
     # Prepare response data
     sales_data = {
         "form_instance_id": form_instance.id,
-        "customer_name": form_instance.customer_name,
-        "created_at": form_instance.created_at,
+        "customer_details": {
+            "total_price": customer.total_price,
+            "amount_paid": customer.amount_paid,
+            "balance_amount": customer.balance_amount,
+            "dealership_id": customer.dealership_id,
+            "branch_id": customer.branch_id,
+            "user_id": customer.user_id,
+            "created_at": customer.created_at,
+        },
         "responses": [
             {"field_name": response.form_field.name, "value": response.value}
             for response in responses
