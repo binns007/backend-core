@@ -62,7 +62,7 @@ async def notify_employee(
         HTTPException: For permission, validation or notification errors
     """
     # Check permissions
-    if current_user.role != models.RoleEnum.ADMIN and current_user.id != employee_id:
+    if current_user.role != models.RoleEnum.admin and current_user.id != employee_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only send notifications to yourself unless you're an admin"
@@ -145,7 +145,7 @@ async def notify_batch_employees(
     Raises:
         HTTPException: For permission or validation errors
     """
-    if current_user.role != models.RoleEnum.ADMIN:
+    if current_user.role != models.RoleEnum.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin users can send batch notifications"
@@ -225,7 +225,7 @@ async def notify_batch_employees(
 
 
 def create_employee(employee_data: employee.EmployeeCreate, db: Session, current_user: models.User):
-    if current_user.role != models.RoleEnum.ADMIN:
+    if current_user.role != models.RoleEnum.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin users can create employees"
@@ -270,7 +270,7 @@ def create_employee(employee_data: employee.EmployeeCreate, db: Session, current
 def get_employees(db: Session, current_user: models.User):
     return db.query(models.User).filter(
         models.User.dealership_id == current_user.dealership_id,
-        models.User.role != models.RoleEnum.ADMIN
+        models.User.role != models.RoleEnum.admin
     ).all()
 
 def update_employee(employee_id: int, employee_data: employee.EmployeeUpdate, db: Session, current_user: models.User):
@@ -312,7 +312,7 @@ def delete_employee(employee_id: int, db: Session, current_user: models.User):
 def activate_employee_account(activation_data: employee.EmployeeActivation, db: Session):
     # Get the employee by email
     employee = db.query(models.User).filter(models.User.email == activation_data.email).first()
-    
+
     if not employee:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -352,7 +352,7 @@ def activate_employee_account(activation_data: employee.EmployeeActivation, db: 
 
 def get_employee_by_id(employee_id: int, db: Session, current_user: models.User):
     """Get detailed information about a specific employee"""
-    if current_user.role != models.RoleEnum.ADMIN:
+    if current_user.role != models.RoleEnum.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin users can view detailed employee information"
@@ -378,7 +378,7 @@ def update_employee_role(
     current_user: models.User
 ):
     """Update an employee's role"""
-    if current_user.role != models.RoleEnum.ADMIN:
+    if current_user.role != models.RoleEnum.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin users can update employee roles"
@@ -406,19 +406,19 @@ def get_available_roles(db: Session, current_user: models.User):
     """Get list of all available roles with descriptions"""
     roles_info = [
         employee.RoleResponse(
-            name=models.RoleEnum.DEALER.value,
+            name=models.RoleEnum.dealer.value,
             description="Can manage overall dealership operations"
         ),
         employee.RoleResponse(
-            name=models.RoleEnum.SALES_EXECUTIVE.value,
+            name=models.RoleEnum.sales_executive.value,
             description="Handles sales and customer interactions"
         ),
         employee.RoleResponse(
-            name=models.RoleEnum.FINANCE.value,
+            name=models.RoleEnum.finance.value,
             description="Manages financial aspects and transactions"
         ),
         employee.RoleResponse(
-            name=models.RoleEnum.RTO.value,
+            name=models.RoleEnum.rto.value,
             description="Handles vehicle registration and documentation"
         )
     ]

@@ -138,7 +138,7 @@ async def send_in_app_notification(
     Send an in-app notification to a specific user
     Requires authentication and admin privileges
     """
-    if current_user.role != models.RoleEnum.ADMIN:
+    if current_user.role != models.RoleEnum.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin users can send notifications"

@@ -5,12 +5,12 @@ from enum import Enum
 
 
 class RoleEnum(str, Enum):
-    ADMIN = "ADMIN"
-    DEALER = "DEALER"
-    SALES_EXECUTIVE = "SALES_EXECUTIVE"
-    FINANCE = "FINANCE"
-    RTO = "RTO"
-    CUSTOMER = "CUSTOMER"
+    admin = "admin"
+    dealer = "dealer"
+    sales_executive = "sales_executive"
+    finance = "finance"
+    rto = "rto"
+    customer = "customer"
     
 class AdminUserCreate(BaseModel):
     first_name: str

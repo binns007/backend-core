@@ -8,12 +8,12 @@ Base = declarative_base()
 
 
 class RoleEnum(enum.Enum):
-    ADMIN = "admin"
-    DEALER = "dealer"
-    SALES_EXECUTIVE = "sales_executive"
-    FINANCE = "finance"
-    RTO = "rto"
-    CUSTOMER = "customer"
+    admin = "admin"
+    dealer = "dealer"
+    sales_executive = "sales_executive"
+    finance = "finance" 
+    rto = "rto"
+    customer = "customer"
     
 class Dealership(Base):
     __tablename__ = "dealerships"
@@ -41,7 +41,7 @@ class DealershipRole(Base):
     __tablename__ = "dealership_roles"
     id = Column(Integer, primary_key=True, index=True)
     dealership_id = Column(Integer, ForeignKey("dealerships.id"), nullable=False)
-    role = Column(SQLAlchemyEnum(RoleEnum), nullable=False)
+    role = Column(SQLAlchemyEnum(RoleEnum, name='role_enum', create_type=False), nullable=False)
     enabled = Column(Boolean, default=True)
     
     dealership = relationship("Dealership", back_populates="roles")
@@ -160,8 +160,8 @@ class Vehicle(Base):
 
 
 class FilledByEnum(str, enum.Enum):
-    SALES_EXECUTIVE = "sales_executive"
-    CUSTOMER = "customer"
+    sales_executive = "sales_executive"
+    customer = "customer"
 
 class FieldTypeEnum(str, enum.Enum):
     text = "text"
@@ -196,9 +196,9 @@ class FormField(Base):
     id = Column(Integer, primary_key=True, index=True)
     template_id = Column(Integer, ForeignKey("form_templates.id"), nullable=False)
     name = Column(String, nullable=False)
-    field_type = Column(SQLAlchemyEnum(FieldTypeEnum), nullable=False)
+    field_type = Column(SQLAlchemyEnum(FieldTypeEnum, name='field_type_enum'), nullable=False)
     is_required = Column(Boolean, default=True)
-    filled_by = Column(SQLAlchemyEnum(FilledByEnum), nullable=False)
+    filled_by = Column(SQLAlchemyEnum(FilledByEnum, name='filled_by_enum'), nullable=False)
     order = Column(Integer, nullable=False)
 
     template = relationship("FormTemplate", back_populates="fields")

@@ -5,16 +5,16 @@ import models
 
 
 class FilledByEnum(str, Enum):
-    SALES_EXECUTIVE = "sales_executive"
-    CUSTOMER = "customer"
+    sales_executive = "sales_executive"
+    customer = "customer"
 
 class FieldTypeEnum(str, Enum):
-    TEXT = "text"
-    NUMBER = "number"
-    IMAGE = "image"
-    DATE = "date"
-    AMOUNT = "amount"
-    VEHICLE = "vehicle"
+    text = "text"
+    number = "number"
+    image = "image"
+    date = "date"
+    amount = "amount"
+    vehicle = "vehicle"
 
 class FormFieldCreate(BaseModel):
     name: str

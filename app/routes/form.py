@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException
+import traceback 
+
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from typing import List,Dict
@@ -157,9 +159,9 @@ def add_fields_to_template(template_id: int, fields: List[form.FormFieldCreate],
         
         return new_fields
     except Exception as e:
-        print("Error adding fields:", e)
-        raise HTTPException(status_code=500, detail="An error occurred while adding fields.")
-
+        print(f"Error adding fields: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/templates/", response_model=form.FormTemplateResponse)
 def create_form_template(template: form.FormTemplateCreate,

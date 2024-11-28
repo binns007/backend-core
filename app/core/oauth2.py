@@ -58,7 +58,7 @@ def get_current_user(token: str = Depends(oauth2_scheme_user), db: Session = Dep
     user = db.query(models.User).filter(models.User.id == token.id).first()
     
     # Check activation status only for non-admin users
-    if user and not user.is_activated and user.role != models.RoleEnum.ADMIN:
+    if user and not user.is_activated and user.role != models.RoleEnum.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account not activated. Please activate your account first."
@@ -93,7 +93,7 @@ async def get_current_user_from_token(token: str, db: Session):
             raise credentials_exception
 
         # Check activation status only for non-admin users
-        if not user.is_activated and user.role != models.RoleEnum.ADMIN:
+        if not user.is_activated and user.role != models.RoleEnum.admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Account not activated. Please activate your account first."

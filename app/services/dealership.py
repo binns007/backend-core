@@ -1,12 +1,9 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import text
+
 import models
 from schemas import dealership
-
-
-
-
-
 
 def register_dealership_service(
      dealership_data: dealership.DealershipCreate, db: Session,current_user: models.User
