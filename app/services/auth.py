@@ -39,7 +39,7 @@ def authenticate_user(user_credentials: OAuth2PasswordRequestForm, db: Session) 
         raise ValueError("Invalid credentials")
 
     # Check activation status for non-admin users
-    if user.role != models.RoleEnum.ADMIN and not user.is_activated:
+    if user.role != models.RoleEnum.admin and not user.is_activated:
         raise ValueError("Please activate your account before logging in. Check your email for activation instructions.")
 
     # Create an access token

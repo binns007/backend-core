@@ -4,7 +4,7 @@ import models
 from schemas import branch
 
 def create_branch(branch_data: branch.BranchCreate, db: Session, current_user: models.User):
-    if current_user.role != models.RoleEnum.ADMIN:
+    if current_user.role != models.RoleEnum.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin users can create branches"
