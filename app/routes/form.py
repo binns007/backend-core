@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 import traceback 
 
 from sqlalchemy.orm import Session
+from services.websockets import notification_manager
 from sqlalchemy.sql import func
 from typing import List,Dict
 from schemas import form
@@ -30,6 +31,7 @@ async def notify_sales_executive(
 ) -> None:
     """
     Send notification to sales executive about customer form submission
+    via in-app notification and WebSocket
     """
     notification_data = employee.NotificationCreate(
         user_id=sales_exec_id,
@@ -38,11 +40,22 @@ async def notify_sales_executive(
         priority="normal"
     )
     
+    # Create in-app notification
     await employee_service.create_in_app_notification(
         notification_data=notification_data,
         db=db
     )
-
+    
+    # Send WebSocket notification
+    await notification_manager.broadcast_to_user(
+        user_id=sales_exec_id, 
+        message={
+            "type": "form_submission",
+            "title": "Form Submission Notification",
+            "message": f"Customer {customer_name} has submitted form #{form_id}",
+            "form_id": form_id
+        }
+    )
 
 @router.post("/forms/{form_instance_id}/submit/customer", response_model=Dict)
 async def submit_customer_data(
@@ -506,6 +519,8 @@ def get_sales_data(
     }
 
     return sales_data
+
+
 
 
 # @router.post("/forms/{form_instance_id}/submit/customer", response_model=dict)

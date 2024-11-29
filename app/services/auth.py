@@ -31,7 +31,7 @@ def register_admin_user(user: user.AdminUserCreate, db: Session):
     
     return new_user
 
-def authenticate_user(user_credentials: OAuth2PasswordRequestForm, db: Session) -> tuple:
+def authenticate_user(user_credentials: OAuth2PasswordRequestForm, db: Session) :
     user = db.query(models.User).filter(models.User.email == user_credentials.username).first()
 
     # Check if user exists and the password is correct
