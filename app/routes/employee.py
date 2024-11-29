@@ -163,3 +163,155 @@ def mark_notifications_read(
             db
         )
     }
+
+
+@router.patch("/forms/{form_instance_id}/verify-sales", response_model=dict)
+def verify_sales_data(
+    form_instance_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user)
+):
+    """
+    Verify sales data for a form instance and mark it as sales verified.
+    """
+    # Fetch the form instance
+    form_instance = db.query(models.FormInstance).filter(
+        models.FormInstance.id == form_instance_id
+    ).first()
+
+    if not form_instance:
+        raise HTTPException(status_code=404, detail="Form instance not found.")
+
+    # Ensure only sales executives or admins can verify
+    if current_user.role not in [models.RoleEnum.sales_executive, models.RoleEnum.admin]:
+        raise HTTPException(status_code=403, detail="Unauthorized to verify sales data.")
+
+    # Check if customer has submitted data
+    if not form_instance.customer_submitted:
+        raise HTTPException(status_code=400, detail="Customer data not yet submitted.")
+
+    # Mark as sales verified
+    form_instance.sales_verified = True
+    db.commit()
+
+    return {
+        "message": "Sales data verified successfully.",
+        "form_instance_id": form_instance.id
+    }
+
+
+@router.get("/forms/sales-verified", response_model=List[dict])
+def get_sales_verified_forms(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user)
+):
+    """
+    Retrieve all sales verified form instances with customer and sales data.
+    """
+    # Filter form instances that are sales verified, belonging to the user's dealership
+    form_instances = (
+        db.query(models.FormInstance)
+        .join(models.FormTemplate)
+        .filter(
+            models.FormTemplate.dealership_id == current_user.dealership_id,
+            models.FormInstance.sales_verified == True
+        )
+        .all()
+    )
+
+    verified_forms = []
+    for form_instance in form_instances:
+        # Fetch customer data
+        customer = db.query(models.Customer).filter(
+            models.Customer.form_instance_id == form_instance.id
+        ).first()
+
+        # Fetch customer and sales responses
+        customer_responses = (
+            db.query(models.FormResponse)
+            .join(models.FormField)
+            .filter(
+                models.FormResponse.form_instance_id == form_instance.id,
+                models.FormField.filled_by == "customer"
+            )
+            .all()
+        )
+
+        sales_responses = (
+            db.query(models.FormResponse)
+            .join(models.FormField)
+            .filter(
+                models.FormResponse.form_instance_id == form_instance.id,
+                models.FormField.filled_by == "sales_executive"
+            )
+            .all()
+        )
+
+        # Prepare customer details dictionary with default values if customer is None
+        customer_details = {
+            "total_price": customer.total_price if customer else None,
+            "amount_paid": customer.amount_paid if customer else None,
+            "balance_amount": customer.balance_amount if customer else None,
+        }
+
+        verified_forms.append({
+            "form_instance_id": form_instance.id,
+            "customer_name": form_instance.customer_name,
+            "customer_data": [
+                {"field_name": resp.form_field.name, "value": resp.value}
+                for resp in customer_responses
+            ],
+            "sales_data": [
+                {"field_name": resp.form_field.name, "value": resp.value}
+                for resp in sales_responses
+            ],
+            "customer_details": customer_details
+        })
+
+    return verified_forms
+
+
+@router.get("/forms/customer-submitted", response_model=List[dict])
+def get_customer_submitted_forms(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user)
+):
+    """
+    Retrieve all customer submitted form instances with customer data.
+    """
+    # Filter form instances that are customer submitted, belonging to the user's dealership
+    form_instances = (
+        db.query(models.FormInstance)
+        .join(models.FormTemplate)
+        .filter(
+            models.FormTemplate.dealership_id == current_user.dealership_id,
+            models.FormInstance.customer_submitted == True,
+            models.FormInstance.sales_verified == False
+        )
+        .all()
+    )
+
+    submitted_forms = []
+    for form_instance in form_instances:
+        # Fetch customer responses
+        customer_responses = (
+            db.query(models.FormResponse)
+            .join(models.FormField)
+            .filter(
+                models.FormResponse.form_instance_id == form_instance.id,
+                models.FormField.filled_by == "customer"
+            )
+            .all()
+        )
+
+        submitted_forms.append({
+            "form_instance_id": form_instance.id,
+            "customer_name": form_instance.customer_name,
+            "customer_submitted_at": form_instance.customer_submitted_at,
+            "customer_data": [
+                {"field_name": resp.form_field.name, "value": resp.value}
+                for resp in customer_responses
+            ]
+        })
+
+    return submitted_forms

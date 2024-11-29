@@ -209,6 +209,9 @@ class FormInstance(Base):
     generated_by = Column(Integer, nullable=False)  # Sales executive ID
     customer_name = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    customer_submitted_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    customer_submitted = Column(Boolean,default=False, nullable=True)
+    sales_verified = Column(Boolean,default=False, nullable=True)
     
     customer = relationship("Customer", back_populates="form_instance", uselist=False)
 
