@@ -234,7 +234,7 @@ async def create_chat_session(
     # Find an available sales executive
     employee = db.query(models.User).filter(
         models.User.is_activated == True,
-        models.User.role == models.RoleEnum.SALES_EXECUTIVE
+        models.User.role == models.RoleEnum.sales_executive
     ).first()
     
     if not employee:
