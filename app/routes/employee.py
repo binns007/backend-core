@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict
 from schemas import employee
 from services import employee as employee_service
 from core import oauth2
@@ -315,3 +315,82 @@ def get_customer_submitted_forms(
         })
 
     return submitted_forms
+
+
+
+
+@router.get("/accounts/get_pending_forms", response_model=List[Dict])
+def get_pending_sales_forms(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user)
+):
+    """
+    Retrieve form instances that have been verified by sales and are pending accounts verification
+    """
+    # Ensure only accounts role can access this endpoint
+    if current_user.role != models.RoleEnum.finance:
+        raise HTTPException(status_code=403, detail="Unauthorized access")
+
+    # Query form instances that are customer submitted and sales verified
+    pending_forms = db.query(models.FormInstance).filter(
+        models.FormInstance.sales_verified == True,
+        models.FormInstance.customer_submitted == True
+    ).all()
+
+    # Prepare a detailed response with form and customer information
+    form_details = []
+    for form_instance in pending_forms:
+        # Fetch associated customer data
+        customer = db.query(models.Customer).filter(
+            models.Customer.form_instance_id == form_instance.id
+        ).first()
+
+        if customer:
+            form_detail = {
+                "form_instance_id": form_instance.id,
+                "customer_name": form_instance.customer_name,
+                "total_price": customer.total_price,
+                "amount_paid": customer.amount_paid,
+                "balance_amount": customer.balance_amount,
+                "vehicle_name": customer.vehicle.name if customer.vehicle else None
+            }
+            form_details.append(form_detail)
+
+    return form_details
+
+@router.post("/accounts/{form_instance_id}/verify", response_model=dict)
+def verify_accounts_data(
+    form_instance_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(oauth2.get_current_user)
+):
+    """
+    Verify form instance by accounts role
+    """
+    # Ensure only accounts role can verify
+    if current_user.role != models.RoleEnum.finance:
+        raise HTTPException(status_code=403, detail="Unauthorized to verify accounts data")
+
+    # Fetch the form instance
+    form_instance = db.query(models.FormInstance).filter(
+        models.FormInstance.id == form_instance_id
+    ).first()
+
+    if not form_instance:
+        raise HTTPException(status_code=404, detail="Form instance not found")
+
+    # Check prerequisites: customer submitted and sales verified
+    if not form_instance.customer_submitted:
+        raise HTTPException(status_code=400, detail="Customer data not submitted")
+    
+    if not form_instance.sales_verified:
+        raise HTTPException(status_code=400, detail="Sales data not verified")
+
+    # Mark as accounts verified
+    form_instance.accounts_verified = True  # You'll need to add this column to FormInstance model
+    db.commit()
+
+    return {
+        "message": "Accounts verification completed successfully",
+        "form_instance_id": form_instance.id
+    }

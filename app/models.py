@@ -212,6 +212,7 @@ class FormInstance(Base):
     customer_submitted_at = Column(TIMESTAMP(timezone=True), nullable=True)
     customer_submitted = Column(Boolean,default=False, nullable=True)
     sales_verified = Column(Boolean,default=False, nullable=True)
+    accounts_verified = Column(Boolean, default=False, nullable=True)
     
     customer = relationship("Customer", back_populates="form_instance", uselist=False)
 
