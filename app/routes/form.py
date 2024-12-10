@@ -388,7 +388,7 @@ def submit_sales_data(
             filename = utils.generate_unique_filename(value.filename)
 
             # Upload the image to S3 and get the URL
-            s3_url = utils.upload_image_to_s3(value, "hogspot", filename)
+            s3_url = utils.upload_image_to_s3(value, "saastestd", filename)
             responses.append(models.FormResponse(
                 form_instance_id=form_instance.id,
                 form_field_id=field.id,
