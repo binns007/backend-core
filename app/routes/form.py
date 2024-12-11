@@ -413,8 +413,7 @@ def submit_customer_data(
     form_instance_id: int,
     total_price: float,
     amount_paid: float,
-    balance_amount: float,
-    vehicle_id: int,
+    vehicle_id: int, 
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(oauth2.get_current_user),
 ):
@@ -443,7 +442,7 @@ def submit_customer_data(
             status_code=400,
             detail="Customer data for this form instance already exists."
         )
-
+    balance_amount = total_price - amount_paid
     # Create a new customer record
     new_customer = models.Customer(
         form_instance_id=form_instance_id,
