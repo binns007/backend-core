@@ -364,63 +364,102 @@ def create_form_instance(
 
 
 @router.post("/forms/{form_instance_id}/submit/sales", response_model=dict)
-def submit_sales_data(
+async def submit_sales_data(
     form_instance_id: int,
-    data: dict,
+    data: str = Form(...),  # JSON string of form data
+    files: Optional[List[UploadFile]] = File(None),  # Optional file uploads
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(oauth2.get_current_user),
 ):
     """
     Sales executive submits their part of the form data.
     """
+
+    try:
+        # Parse the JSON data
+        data_dict = json.loads(data)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON in 'data' field"
+        )
+
     # Fetch the form instance
     form_instance = db.query(models.FormInstance).filter(
         models.FormInstance.id == form_instance_id,
         models.FormInstance.generated_by == current_user.id
     ).first()
+  
 
     if not form_instance:
-        raise HTTPException(status_code=404, detail="Form instance not found or unauthorized.")
-
-    # Fetch the active template
-    template = form_instance.template
-    if not template.is_active:
-        raise HTTPException(status_code=400, detail="Form template is not active.")
-
-    # Validate fields to be filled by sales executive
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Form instance not found"
+        )
+    # Fetch sales-fillable fields
     fields = db.query(models.FormField).filter(
-        models.FormField.template_id == template.id,
+        models.FormField.template_id == form_instance.template_id,
         models.FormField.filled_by == "sales_executive"
     ).all()
 
     field_map = {field.name: field for field in fields}
 
     responses = []
-    for field_name, value in data.items():
+    # First, validate and process non-image fields
+    for field_name, value in data_dict.items():
         if field_name not in field_map:
-            raise HTTPException(status_code=400, detail=f"Unexpected field: {field_name}.")
-
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unexpected field: {field_name}"
+            )
+        
         field = field_map[field_name]
+        
+        # Skip image fields for now
+        if field.field_type != "image":
+            responses.append(models.FormResponse(
+                form_instance_id=form_instance.id,
+                form_field_id=field.id,
+                value=str(value)
+            ))
 
+    # Now handle image fields
+    for field in fields:
         if field.field_type == "image":
-            filename = utils.generate_unique_filename(value.filename)
+            # Check if a file was uploaded
+            if not files:
+                if field.is_required:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Required field missing: {field.name}"
+                    )
+                continue
 
-            # Upload the image to S3 and get the URL
-            s3_url = utils.upload_image_to_s3(value, "saastestd", filename)
+            # Use the first uploaded file for image fields
+            file = files[0]
+            
+            # Upload file to S3
+            filename = utils.generate_unique_filename(file.filename)
+            s3_url = await utils.upload_image_to_s3(file, "saastestd", filename)
+            
             responses.append(models.FormResponse(
                 form_instance_id=form_instance.id,
                 form_field_id=field.id,
                 value=s3_url
             ))
-        else:
-            # Handle text or other simple types
-            responses.append(models.FormResponse(
-                form_instance_id=form_instance.id,
-                form_field_id=field.id,
-                value=value
-            ))
 
-    # Save responses to the database
+    # Validate all required fields are present
+    submitted_field_names = set(data_dict.keys())
+    for field in fields:
+        if field.is_required:
+            # Check for non-image required fields
+            if field.field_type != "image" and field.name not in submitted_field_names:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Required field missing: {field.name}"
+                )
+
+    # Save responses
     db.add_all(responses)
     db.commit()
 
@@ -539,63 +578,3 @@ def get_sales_data(
 
 
 
-
-# @router.post("/forms/{form_instance_id}/submit/customer", response_model=dict)
-# def submit_customer_data(
-#     form_instance_id: int,
-#     data: dict,
-#     db: Session = Depends(database.get_db),
-#     s3_client: S3Client = Depends(get_s3_client),  # Inject S3 client
-# ):
-#     """
-#     Customer submits their part of the form data.
-#     """
-#     # Fetch the form instance
-#     form_instance = db.query(models.FormInstance).filter(
-#         models.FormInstance.id == form_instance_id
-#     ).first()
-
-#     if not form_instance:
-#         raise HTTPException(status_code=404, detail="Form instance not found.")
-
-#     # Fetch the active template
-#     template = form_instance.template
-#     if not template.is_active:
-#         raise HTTPException(status_code=400, detail="Form template is not active.")
-
-#     # Validate fields to be filled by customer
-#     fields = db.query(models.FormField).filter(
-#         models.FormField.template_id == template.id,
-#         models.FormField.filled_by == "customer"
-#     ).all()
-
-#     field_map = {field.name: field for field in fields}
-
-#     responses = []
-#     for field_name, value in data.items():
-#         if field_name not in field_map:
-#             raise HTTPException(status_code=400, detail=f"Unexpected field: {field_name}.")
-
-#         field = field_map[field_name]
-
-#         if field.field_type == "image":
-#             # Upload the image to S3 and get the URL
-#             s3_url = upload_image_to_s3(s3_client, value, folder="form-images")
-#             responses.append(models.FormResponse(
-#                 form_instance_id=form_instance.id,
-#                 form_field_id=field.id,
-#                 value=s3_url
-#             ))
-#         else:
-#             # Handle text or other simple types
-#             responses.append(models.FormResponse(
-#                 form_instance_id=form_instance.id,
-#                 form_field_id=field.id,
-#                 value=value
-#             ))
-
-#     # Save responses to the database
-#     db.add_all(responses)
-#     db.commit()
-
-#     return {"message": "Customer data submitted successfully."}
