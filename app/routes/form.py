@@ -61,7 +61,7 @@ async def notify_sales_executive(
 async def submit_customer_data(
     form_instance_id: int,
     data: str = Form(...),  # JSON string of form data
-    files: List[UploadFile] = File(...),  # Optional file uploads
+    files: Optional[List[UploadFile]] = File(None),  # Optional file uploads
     db: Session = Depends(database.get_db)
 ):
     # Debug logging
