@@ -57,14 +57,19 @@ async def notify_sales_executive(
         }
     )
 
-
 @router.post("/forms/submit-customer/{form_instance_id}", response_model=Dict)
 async def submit_customer_data(
     form_instance_id: int,
     data: str = Form(...),  # JSON string of form data
-    files: Optional[List[UploadFile]] = File(None),  # Optional file uploads
+    files: List[UploadFile] = File(...),  # Optional file uploads
     db: Session = Depends(database.get_db)
 ):
+    
+     # Debug logging
+    print("Form Instance ID:", form_instance_id)
+    print("Data Received:", data)
+    print("Files Received:", [file.filename for file in files] if files else "No files")
+
     try:
         # Parse the JSON data
         data_dict = json.loads(data)
@@ -92,9 +97,32 @@ async def submit_customer_data(
     ).all()
 
     field_map = {field.name: field for field in fields}
-
     responses = []
-    # First, validate and process non-image fields
+    
+    # Create a set of submitted fields including both JSON data and files
+    submitted_field_names = set(data_dict.keys())
+    if files:
+        submitted_field_names.update(file.filename for file in files)
+
+    # Validate all required fields are present first
+    for field in fields:
+        if field.is_required:
+            if field.field_type == "image":
+                # For image fields, check in files
+                if not files or not any(file.filename == field.name for file in files):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Required image file missing: {field.name}"
+                    )
+            else:
+                # For non-image fields, check in data_dict
+                if field.name not in data_dict:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Required field missing: {field.name}"
+                    )
+
+    # Process non-image fields
     for field_name, value in data_dict.items():
         if field_name not in field_map:
             raise HTTPException(
@@ -104,7 +132,6 @@ async def submit_customer_data(
         
         field = field_map[field_name]
         
-        # Skip image fields for now
         if field.field_type != "image":
             responses.append(models.FormResponse(
                 form_instance_id=form_instance.id,
@@ -112,41 +139,23 @@ async def submit_customer_data(
                 value=str(value)
             ))
 
-    # Now handle image fields
-    for field in fields:
-        if field.field_type == "image":
-            # Check if a file was uploaded
-            if not files:
-                if field.is_required:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Required field missing: {field.name}"
-                    )
-                continue
+    # Process image fields
+    if files:
+        file_map = {file.filename: file for file in files}
+        
+        for field in fields:
+            if field.field_type == "image":
+                file = file_map.get(field.name)
+                if file:
+                    # Upload file to S3
+                    filename = utils.generate_unique_filename(file.filename)
+                    s3_url = await utils.upload_image_to_s3(file, "saastestd", filename)
 
-            # Use the first uploaded file for image fields
-            file = files[0]
-            
-            # Upload file to S3
-            filename = utils.generate_unique_filename(file.filename)
-            s3_url = await utils.upload_image_to_s3(file, "saastestd", filename)
-            
-            responses.append(models.FormResponse(
-                form_instance_id=form_instance.id,
-                form_field_id=field.id,
-                value=s3_url
-            ))
-
-    # Validate all required fields are present
-    submitted_field_names = set(data_dict.keys())
-    for field in fields:
-        if field.is_required:
-            # Check for non-image required fields
-            if field.field_type != "image" and field.name not in submitted_field_names:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Required field missing: {field.name}"
-                )
+                    responses.append(models.FormResponse(
+                        form_instance_id=form_instance.id,
+                        form_field_id=field.id,
+                        value=s3_url
+                    ))
 
     # Save responses
     db.add_all(responses)
