@@ -25,18 +25,25 @@ def verify(plain_password, hashed_pass):
 
 
 
-
-async def upload_image_to_s3(image: BytesIO, bucket_name: str, file_name: str = None) -> str:
+async def upload_image_to_s3(file: UploadFile, bucket_name: str, file_name: str = None) -> str:
     s3 = boto3.client('s3', aws_access_key_id=AWS_SERVER_PUBLIC_KEY, aws_secret_access_key=AWS_SERVER_SECRET_KEY)
     try:
         # Generate unique filename if not provided
         unique_filename = file_name if file_name else f"{uuid.uuid4().hex}.jpg"
+        
+        # Read the file content
+        contents = await file.read()
+        file_obj = BytesIO(contents)
 
         # Upload the file to the S3 bucket
-        s3.upload_fileobj(image, bucket_name, unique_filename)
+        s3.upload_fileobj(file_obj, bucket_name, unique_filename)
 
         # Construct the public URL for the uploaded image
         image_url = f"https://{bucket_name}.s3.amazonaws.com/{unique_filename}"
+        
+        # Reset file pointer for potential future reads
+        await file.seek(0)
+        
         return image_url
 
     except NoCredentialsError:
