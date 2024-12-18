@@ -58,3 +58,8 @@ def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Session =
         return {"access_token": token, "token_type": "bearer", "role": role}
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+
+
+
